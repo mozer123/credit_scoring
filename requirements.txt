@@ -1,11 +1,4 @@
-catboost
-datasets
-fasttext
-matplotlib
-numpy
 pandas
-re
+pyarrow
 scikit-learn
-sklearn
-transformers
-xgboost
+seaborn

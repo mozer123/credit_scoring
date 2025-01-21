@@ -1,0 +1,112 @@
+# Example of a feature creation function
+def average_transaction_amount(account_df, transaction_df):
+    """
+    Calculates the average transaction amount per consumer and returns a dataframe
+    with the `prism_consumer_id` and the new feature.
+
+    Guidelines for creating feature functions:
+    1. Always accept `account_df` and `transaction_df` in this specific order.
+    2. Do not modify the input dataframes.
+    3. Return a dataframe with only `prism_consumer_id` and the calculated features.
+    4. Ensure the function is self-contained and easy to test.
+
+    Parameters:
+        account_df (pd.DataFrame): Account-level dataframe (not used in this function but included for consistency).
+        transaction_df (pd.DataFrame): Transaction-level dataframe used for calculations.
+
+    Returns:
+        pd.DataFrame: A dataframe with `prism_consumer_id` and the new feature column `average_transaction_amount`.
+    """
+
+    # Step 1: Start with a unique list of consumers from transaction_df
+    result = transaction_df[['prism_consumer_id']].drop_duplicates().reset_index(drop=True)
+
+    # Step 2: Perform calculations
+    # Calculate total transaction amounts per consumer
+    transaction_sums = transaction_df.groupby('prism_consumer_id')['amount'].sum()
+
+    # Calculate the total number of transactions per consumer
+    transaction_counts = transaction_df.groupby('prism_consumer_id')['prism_transaction_id'].count()
+
+    # Calculate the average transaction amount
+    average_transaction_amount = transaction_sums / transaction_counts
+
+    # Step 3: Map the calculated averages back to the result dataframe
+    result['average_transaction_amount'] = result['prism_consumer_id'].map(average_transaction_amount)
+
+    # Step 5: Return the final dataframe
+    return result
+
+def net_monthly_cash_flow(account_df, transaction_df):
+    """
+    Calculates the net monthly cash flow per consumer.
+    """
+    # Extract month and year without modifying the original dataframe
+    month_year = transaction_df['posted_date'].dt.to_period('M')
+
+    # Compute inflows (CREDIT) and outflows (DEBIT) as a temporary series
+    adjusted_amounts = transaction_df['amount'] * transaction_df['credit_or_debit'].apply(
+        lambda x: 1 if x == 'CREDIT' else -1
+    )
+
+    # Aggregate monthly net cash flow per consumer
+    monthly_net = transaction_df.assign(month_year=month_year, adjusted_amount=adjusted_amounts).groupby(
+        ['prism_consumer_id', 'month_year']
+    )['adjusted_amount'].sum()
+
+    # Summarize over all months for each consumer
+    net_cash_flow = monthly_net.groupby('prism_consumer_id').sum().reset_index()
+    net_cash_flow.rename(columns={'adjusted_amount': 'net_monthly_cash_flow'}, inplace=True)
+
+    return net_cash_flow
+
+def average_account_balance(account_df, transaction_df):
+    """
+    Calculates the average account balance per consumer using account_df.
+    """
+    # Aggregate the average balance per consumer
+    average_balance = account_df.groupby('prism_consumer_id')['balance'].mean()
+
+    # Create a result dataframe
+    result = account_df[['prism_consumer_id']].drop_duplicates().reset_index(drop=True)
+    result['average_account_balance'] = result['prism_consumer_id'].map(average_balance)
+
+    return result
+
+def time_based_average_transaction_amounts(account_df, transaction_df):
+    """
+    Creates features related to average transaction amounts over monthly, weekly, and yearly periods per consumer.
+    """
+    # Extract date-related components from the transaction data
+    transaction_df['year'] = transaction_df['posted_date'].dt.year
+    transaction_df['month'] = transaction_df['posted_date'].dt.month
+    transaction_df['week'] = transaction_df['posted_date'].dt.isocalendar().week
+
+    # Group transactions by different time periods and aggregate totals per consumer
+    monthly_totals = (
+        transaction_df.groupby(['prism_consumer_id', 'year', 'month'])['amount']
+        .sum()
+        .groupby('prism_consumer_id')
+        .mean()
+    )
+    weekly_totals = (
+        transaction_df.groupby(['prism_consumer_id', 'year', 'week'])['amount']
+        .sum()
+        .groupby('prism_consumer_id')
+        .mean()
+    )
+    yearly_totals = (
+        transaction_df.groupby(['prism_consumer_id', 'year'])['amount']
+        .sum()
+        .groupby('prism_consumer_id')
+        .mean()
+    )
+
+    # Create a result dataframe with unique consumer IDs
+    result = transaction_df[['prism_consumer_id']].drop_duplicates().reset_index(drop=True)
+    result['avg_monthly_transaction'] = result['prism_consumer_id'].map(monthly_totals)
+    result['avg_weekly_transaction'] = result['prism_consumer_id'].map(weekly_totals)
+    result['avg_yearly_transaction'] = result['prism_consumer_id'].map(yearly_totals)
+
+    return result
+

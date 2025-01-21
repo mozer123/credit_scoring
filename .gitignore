@@ -1,6 +1,6 @@
-# Ignore contents of 'data' folders but keep the folders themselves with .gitkeep
-data/*
-!data/.gitkeep
+# Ignore contents of all 'data' folders recursively but keep the folders themselves
+**/data/*
+!**/data/.gitkeep
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
