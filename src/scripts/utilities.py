@@ -57,6 +57,9 @@ def get_data():
         # Convert 'posted_date' to datetime format
         transaction_df['posted_date'] = pd.to_datetime(transaction_df['posted_date'])
 
+        # Convert 'balance_date' to datetime format
+        account_df['balance_date'] = pd.to_datetime(account_df['balance_date'])
+
         print("Data successfully loaded and processed.")
         return consumer_df, account_df, transaction_df
 
