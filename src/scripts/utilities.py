@@ -1,10 +1,14 @@
 import os
+import json
+import inspect
+import hashlib
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
+from datetime import datetime
 
 
 def get_data():
@@ -153,6 +157,156 @@ def train_logistic_regression(train_df, feature_columns):
     model.fit(X_train, y_train)
 
     return model
+
+class MetadataManager:
+    """
+    Manages feature function metadata and caching of feature computation results.
+    """
+    def __init__(self):
+        self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.temp_dir = os.path.join(self.base_dir, 'data', 'temporary_data')
+        os.makedirs(self.temp_dir, exist_ok=True)
+        
+    def get_metadata_path(self):
+        """Get the path to the metadata JSON file."""
+        return os.path.join(self.temp_dir, 'feature_metadata.json')
+    
+    def get_cache_path(self):
+        """Get the path to the feature cache directory."""
+        cache_dir = os.path.join(self.temp_dir, 'feature_cache')
+        os.makedirs(cache_dir, exist_ok=True)
+        return cache_dir
+    
+    def get_function_metadata(self, fn):
+        """
+        Extract metadata for a given function.
+        
+        Parameters:
+            fn: Function object to analyze
+        
+        Returns:
+            dict: Metadata including source code hash and last modified time
+        """
+        source = inspect.getsource(fn)
+        hash_object = hashlib.md5(source.encode())
+        return {
+            'hash': hash_object.hexdigest(),
+            'last_modified': datetime.now().isoformat(),
+            'name': fn.__name__
+        }
+    
+    def load_metadata(self):
+        """Load feature function metadata from JSON file."""
+        metadata_path = self.get_metadata_path()
+        if os.path.exists(metadata_path):
+            with open(metadata_path, 'r') as f:
+                return json.load(f)
+        return {}
+    
+    def save_metadata(self, metadata):
+        """Save feature function metadata to JSON file."""
+        metadata_path = self.get_metadata_path()
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f, indent=2)
+    
+    def load_cached_result(self, feature_name):
+        """Load cached feature computation result if it exists."""
+        cache_path = os.path.join(self.get_cache_path(), f"{feature_name}.pkl")
+        if os.path.exists(cache_path):
+            try:
+                return pd.read_pickle(cache_path)
+            except Exception as e:
+                print(f"Warning: Failed to load cache for {feature_name}: {e}")
+                return None
+        return None
+    
+    def save_cached_result(self, feature_name, result):
+        """Save feature computation result to cache."""
+        cache_path = os.path.join(self.get_cache_path(), f"{feature_name}.pkl")
+        try:
+            result.to_pickle(cache_path)
+        except Exception as e:
+            print(f"Warning: Failed to cache {feature_name}: {e}")
+
+def execute_selected_features(selected_features, account_df, transaction_df):
+    """
+    Execute only new or modified feature functions and return their results.
+    
+    Parameters:
+        selected_features: List of feature functions to potentially execute
+    
+    Returns:
+        list: List of DataFrames containing feature results
+    """
+    metadata_manager = MetadataManager()
+    metadata = metadata_manager.load_metadata()
+    
+    # Analyze which functions need to be executed
+    new_features = []
+    updated_features = []
+    unchanged_features = []
+    
+    for fn in selected_features:
+        current_metadata = metadata_manager.get_function_metadata(fn)
+        if fn.__name__ not in metadata:
+            new_features.append(fn)
+        elif metadata[fn.__name__]['hash'] != current_metadata['hash']:
+            updated_features.append(fn)
+        else:
+            unchanged_features.append(fn)
+    
+    # Report execution plan
+    total_features = len(selected_features)
+    print(f"\nFeature Execution Plan:")
+    print(f"- Total features: {total_features}")
+    
+    if len(new_features) > 0:
+        if len(new_features) <= 5:
+            print(f"- New features ({len(new_features)}): {', '.join(f.__name__ for f in new_features)}")
+        else:
+            print(f"- New features: {len(new_features)}")
+    
+    if len(updated_features) > 0:
+        if len(updated_features) <= 5:
+            print(f"- Updated features ({len(updated_features)}): {', '.join(f.__name__ for f in updated_features)}")
+        else:
+            print(f"- Updated features: {len(updated_features)}")
+    
+    print(f"- Unchanged features: {len(unchanged_features)} (using cached results)")
+    
+    # Execute only new and updated features
+    feature_dataframes = []
+    features_to_execute = new_features + updated_features
+    
+    if features_to_execute:
+        print("\nExecuting features...")
+        for fn in features_to_execute:
+            print(f"- Running {fn.__name__}...")
+            result = fn(account_df, transaction_df)
+            feature_dataframes.append(result)
+            
+            # Update metadata and cache for this function
+            metadata[fn.__name__] = metadata_manager.get_function_metadata(fn)
+            metadata_manager.save_cached_result(fn.__name__, result)
+    
+        # Save updated metadata
+        metadata_manager.save_metadata(metadata)
+    else:
+        print("\nNo features need to be executed.")
+    
+    # For unchanged features, load from cache or recalculate if cache missing
+    for fn in unchanged_features:
+        cached_result = metadata_manager.load_cached_result(fn.__name__)
+        if cached_result is not None:
+            print(f"- Using cached result for {fn.__name__}")
+            feature_dataframes.append(cached_result)
+        else:
+            print(f"- Cache missing for {fn.__name__}, recalculating...")
+            result = fn(account_df, transaction_df)
+            metadata_manager.save_cached_result(fn.__name__, result)
+            feature_dataframes.append(result)
+    
+    return feature_dataframes
 
 def predict_and_analyze_model(model, test_df, feature_columns):
     """
