@@ -1,6 +1,10 @@
-# Ignore contents of all 'data' folders recursively but keep the folders themselves
-**/data/*
-!**/data/.gitkeep
+# Ignore everything in src/data/raw_data and src/data/temporary_data
+src/data/raw_data/*
+src/data/temporary_data/*
+
+# Allow .gitkeep in these directories
+!src/data/raw_data/.gitkeep
+!src/data/temporary_data/.gitkeep
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
