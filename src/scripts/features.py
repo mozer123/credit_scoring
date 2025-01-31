@@ -115,7 +115,7 @@ def descriptive_stats_by_category(account_df, transaction_df):
     Creates descriptive statistics based on amounts spent/going into consumers' accounts
     """
     import pandas as pd
-    
+
     feats = transaction_df.groupby(['prism_consumer_id', 'category']).agg({'amount': ['count', 'sum', 'std', 'mean', 'median']})
     feats = feats.unstack(level=1)
     feats.columns = ['_'.join(col).strip() for col in feats.columns.values]
@@ -125,6 +125,5 @@ def descriptive_stats_by_category(account_df, transaction_df):
 
     mapped_feats = pd.DataFrame({col: result['prism_consumer_id'].map(feats[col]) for col in feats.columns})
     result = pd.concat([result, mapped_feats], axis=1)
-
 
     return result
