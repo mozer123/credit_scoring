@@ -1,3 +1,6 @@
+# Seperate main.ipynb from personal local development notebooks and ignore them
+**/mert.ipynb
+
 # Ignore everything in src/data/raw_data and src/data/temporary_data
 src/data/raw_data/*
 src/data/temporary_data/*
