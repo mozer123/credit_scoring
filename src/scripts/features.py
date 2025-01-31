@@ -110,3 +110,13 @@ def time_based_average_transaction_amounts(account_df, transaction_df):
 
     return result
 
+def descriptive_stats_by_category(account_df, transaction_df):
+    """
+    Creates descriptive statistics based on amounts spent/going into consumers' accounts
+    """
+    feats = transaction_df.groupby(['prism_consumer_id', 'category']).agg({'amount': ['count', 'sum', 'std', 'mean', 'median']})
+    feats = feats.unstack(level=1)
+    feats.columns = ['_'.join(col).strip() for col in feats.columns.values]
+    feats = feats.fillna(0)
+    
+    return feats
