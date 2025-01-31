@@ -121,7 +121,6 @@ def descriptive_stats_by_category(account_df, transaction_df):
 
     result = transaction_df[['prism_consumer_id']].drop_duplicates().reset_index(drop=True)
 
-    for col in feats.columns:
-        result[f'{col}'] = result['prism_consumer_id'].map(feats[f'{col}'])
+    result = result.merge(feats, on='prism_consumer_id', how='left').fillna(0)
 
     return result
