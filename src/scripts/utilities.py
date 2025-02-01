@@ -264,7 +264,7 @@ def execute_selected_features(selected_features, account_df, transaction_df):
     # Report execution plan
     total_features = len(selected_features)
     print(f"\nFeature Execution Plan:")
-    print(f"- Total features: {total_features}")
+    print(f"- Total feature creation functions: {total_features}")
     
     if len(new_features) > 0:
         if len(new_features) <= 5:
@@ -360,7 +360,7 @@ def predict_and_analyze_model(model, scaler, train_df, test_df, feature_columns)
     )
 
     # Plot the confusion matrix
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(5, 4))
     sns.heatmap(conf_matrix_df, annot=True, fmt="d", cmap="Blues", cbar=False)
     plt.title("Confusion Matrix")
     plt.ylabel("Actual")
@@ -369,7 +369,7 @@ def predict_and_analyze_model(model, scaler, train_df, test_df, feature_columns)
 
     # Plot ROC
     fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba)
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(5, 4))
     plt.plot(fpr, tpr, label='Model')
     plt.plot([0, 1], [0, 1], linestyle='--', label='Random Chance')
     plt.title("ROC Curve")
