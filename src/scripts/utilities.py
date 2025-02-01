@@ -5,7 +5,8 @@ import hashlib
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix
+from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix, roc_curve
+from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
@@ -146,17 +147,22 @@ def train_logistic_regression(train_df, feature_columns):
 
     Returns:
         LogisticRegression: The trained LogisticRegression model.
+        scaler: To be used again before making predictions.
     """
 
     # Define features (X) and target (y) for training
     X_train = train_df[feature_columns]
     y_train = train_df['DQ_TARGET']
 
-    # Initialize and train the logistic regression model
-    model = LogisticRegression(random_state=123, class_weight="balanced")
-    model.fit(X_train, y_train)
+    # Scale data
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
 
-    return model
+    # Initialize and train the logistic regression model
+    model = LogisticRegression(random_state=123, class_weight="balanced", max_iter=1000)
+    model.fit(X_train_scaled, y_train)
+
+    return model, scaler
 
 class MetadataManager:
     """
@@ -308,31 +314,44 @@ def execute_selected_features(selected_features, account_df, transaction_df):
     
     return feature_dataframes
 
-def predict_and_analyze_model(model, test_df, feature_columns):
+def predict_and_analyze_model(model, scaler, train_df, test_df, feature_columns):
     """
     Predicts and evaluates the model using accuracy, ROC AUC score, and a detailed confusion matrix.
-
+    
     Parameters:
         model (LogisticRegression): The trained logistic regression model.
+        scaler (StandardScaler): The fitted scaler used during training.
+        train_df (pd.DataFrame): Training dataframe containing features and the target column "DQ_TARGET".
         test_df (pd.DataFrame): Testing dataframe containing features and the target column "DQ_TARGET".
-
-    Returns:
-        dict: A dictionary containing accuracy, ROC AUC score, and the confusion matrix.
+        feature_columns (list): List of column names to use as features.
     """
+    # Get raw train features, then scale them with the same scaler
+    X_train = train_df[feature_columns]
+    X_train_scaled = scaler.transform(X_train)
+    y_train = train_df['DQ_TARGET']
 
-    # Extract features (X_test) and target (y_test)
+    # Use the scaled array for predictions
+    y_pred_proba_train = model.predict_proba(X_train_scaled)[:, 1]
+    y_pred_train = model.predict(X_train_scaled)
+    
+    # Calculate training set metrics
+    train_accuracy = accuracy_score(y_train, y_pred_train)
+    train_roc_auc = roc_auc_score(y_train, y_pred_proba_train)
+
+    # Get raw test features, then scale them
     X_test = test_df[feature_columns]
+    X_test_scaled = scaler.transform(X_test)
     y_test = test_df['DQ_TARGET']
 
-    # Predict probabilities and class labels
-    y_pred_proba = model.predict_proba(X_test)[:, 1]  # Probability for the positive class
-    y_pred = model.predict(X_test)  # Predicted class labels
+    # Use scaled test data for predictions
+    y_pred_proba = model.predict_proba(X_test_scaled)[:, 1]
+    y_pred = model.predict(X_test_scaled)
 
-    # Calculate accuracy and ROC AUC score
+    # Calculate accuracy and ROC AUC for the test set
     accuracy = accuracy_score(y_test, y_pred)
     roc_auc = roc_auc_score(y_test, y_pred_proba)
 
-    # Create a detailed confusion matrix
+    # Create a confusion matrix for the test set
     conf_matrix = confusion_matrix(y_test, y_pred)
     conf_matrix_df = pd.DataFrame(
         conf_matrix,
@@ -348,7 +367,25 @@ def predict_and_analyze_model(model, test_df, feature_columns):
     plt.xlabel("Predicted")
     plt.show()
 
-    # Print the evaluation metrics and confusion matrix
+    # Plot ROC
+    fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba)
+    plt.figure(figsize=(8, 6))
+    plt.plot(fpr, tpr, label='Model')
+    plt.plot([0, 1], [0, 1], linestyle='--', label='Random Chance')
+    plt.title("ROC Curve")
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.legend()
+    plt.show()
+
+    # Print the evaluation metrics for the test set
+    print("=== TEST METRICS ===")
     print("Accuracy:", accuracy)
     print("ROC AUC Score:", roc_auc)
     print("Confusion Matrix:\n", conf_matrix_df)
+
+    # Print training metrics
+    print("=== TRAINING METRICS ===")
+    print("Train Accuracy:", train_accuracy)
+    print("Train ROC AUC:", train_roc_auc)
+    print()
