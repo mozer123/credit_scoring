@@ -1,17 +1,17 @@
 # Example of a feature creation function
-def average_transaction_amount(account_df, transaction_df):
+def average_transaction_amount(accountransaction_df, transaction_df):
     """
     Calculates the average transaction amount per consumer and returns a dataframe
     with the `prism_consumer_id` and the new feature.
 
     Guidelines for creating feature functions:
-    1. Always accept `account_df` and `transaction_df` in this specific order.
+    1. Always accept `accountransaction_df` and `transaction_df` in this specific order.
     2. Do not modify the input dataframes.
     3. Return a dataframe with only `prism_consumer_id` and the calculated features.
     4. Ensure the function is self-contained and easy to test.
 
     Parameters:
-        account_df (pd.DataFrame): Account-level dataframe (not used in this function but included for consistency).
+        accountransaction_df (pd.DataFrame): Account-level dataframe (not used in this function but included for consistency).
         transaction_df (pd.DataFrame): Transaction-level dataframe used for calculations.
 
     Returns:
@@ -37,7 +37,7 @@ def average_transaction_amount(account_df, transaction_df):
     # Step 5: Return the final dataframe
     return result
 
-def net_monthly_cash_flow(account_df, transaction_df):
+def net_monthly_cash_flow(accountransaction_df, transaction_df):
     """
     Calculates the net monthly cash flow per consumer.
     """
@@ -60,20 +60,20 @@ def net_monthly_cash_flow(account_df, transaction_df):
 
     return net_cash_flow
 
-def average_account_balance(account_df, transaction_df):
+def average_account_balance(accountransaction_df, transaction_df):
     """
-    Calculates the average account balance per consumer using account_df.
+    Calculates the average account balance per consumer using accountransaction_df.
     """
     # Aggregate the average balance per consumer
-    average_balance = account_df.groupby('prism_consumer_id')['balance'].mean()
+    average_balance = accountransaction_df.groupby('prism_consumer_id')['balance'].mean()
 
     # Create a result dataframe
-    result = account_df[['prism_consumer_id']].drop_duplicates().reset_index(drop=True)
+    result = accountransaction_df[['prism_consumer_id']].drop_duplicates().reset_index(drop=True)
     result['average_account_balance'] = result['prism_consumer_id'].map(average_balance)
 
     return result
 
-def time_based_average_transaction_amounts(account_df, transaction_df):
+def time_based_average_transaction_amounts(accountransaction_df, transaction_df):
     """
     Creates features related to average transaction amounts over monthly, weekly, and yearly periods per consumer.
     """
@@ -110,7 +110,7 @@ def time_based_average_transaction_amounts(account_df, transaction_df):
 
     return result
 
-def descriptive_stats_by_category(account_df, transaction_df):
+def descriptive_stats_by_category(accountransaction_df, transaction_df):
     """
     Creates descriptive statistics based on amounts spent/going into consumers' accounts
     """
@@ -125,5 +125,27 @@ def descriptive_stats_by_category(account_df, transaction_df):
 
     mapped_feats = pd.DataFrame({col: result['prism_consumer_id'].map(feats[col]) for col in feats.columns})
     result = pd.concat([result, mapped_feats], axis=1)
+
+    return result
+
+def outflow_stats(transaction_df):
+    """
+    Features based on spending habits over time
+    """
+    outflows = transaction_df[transaction_df.credit_or_debit == 'DEBIT']
+
+    avg_spending = outflows.groupby('prism_consumer_id')['amount'].mean()
+    outflows['year'] = outflows['posted_date'].dt.year
+    outflows['month'] = outflows['posted_date'].dt.month
+    outflows['week'] = outflows['posted_date'].dt.isocalendar().week
+    monthly_totals = outflows.groupby(['prism_consumer_id', 'year', 'month'])['amount'].sum().groupby('prism_consumer_id').mean()
+    weekly_totals  = outflows.groupby(['prism_consumer_id', 'year', 'week'])['amount'].sum().groupby('prism_consumer_id').mean()
+    yearly_totals  = outflows.groupby(['prism_consumer_id', 'year', 'year'])['amount'].sum().groupby('prism_consumer_id').mean()
+
+    result = transaction_df[['prism_consumer_id']].drop_duplicates().reset_index(drop=True)
+    result['avg_spending'] = result['prism_consumer_id'].map(avg_spending).fillna(0)
+    result['avg_monthly_outflow'] = result['prism_consumer_id'].map(monthly_totals).fillna(0)
+    result['avg_weekly_outflow'] = result['prism_consumer_id'].map(weekly_totals).fillna(0)
+    result['avg_yearly_outflow'] = result['prism_consumer_id'].map(yearly_totals).fillna(0)
 
     return result
