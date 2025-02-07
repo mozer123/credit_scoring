@@ -128,16 +128,16 @@ def descriptive_stats_by_category(accountransaction_df, transaction_df):
 
     return result
 
-def outflow_stats(transaction_df):
+def outflow_stats(accountransaction_df, transaction_df):
     """
     Features based on spending habits over time
     """
     outflows = transaction_df[transaction_df.credit_or_debit == 'DEBIT']
 
     avg_spending = outflows.groupby('prism_consumer_id')['amount'].mean()
-    outflows['year'] = outflows['posted_date'].dt.year
-    outflows['month'] = outflows['posted_date'].dt.month
-    outflows['week'] = outflows['posted_date'].dt.isocalendar().week
+    outflows.loc[:, 'year'] = outflows['posted_date'].dt.year
+    outflows.loc[:, 'month'] = outflows['posted_date'].dt.month
+    outflows.loc[:, 'week'] = outflows['posted_date'].dt.isocalendar().week
     monthly_totals = outflows.groupby(['prism_consumer_id', 'year', 'month'])['amount'].sum().groupby('prism_consumer_id').mean()
     weekly_totals  = outflows.groupby(['prism_consumer_id', 'year', 'week'])['amount'].sum().groupby('prism_consumer_id').mean()
     yearly_totals  = outflows.groupby(['prism_consumer_id', 'year', 'year'])['amount'].sum().groupby('prism_consumer_id').mean()
