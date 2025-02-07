@@ -149,3 +149,50 @@ def outflow_stats(accountransaction_df, transaction_df):
     result['avg_yearly_outflow'] = result['prism_consumer_id'].map(yearly_totals).fillna(0)
 
     return result
+
+def outflow_over_time(accountransaction_df, transaction_df):
+    import pandas as pd
+
+    outflows = transaction_df[transaction_df.credit_or_debit == 'DEBIT']
+    
+    outflows['posted_date'] = pd.to_datetime(outflows['posted_date'])
+    spending_over_time = outflows.sort_values(['prism_consumer_id', 'posted_date'])
+
+    initial_dates = outflows.groupby('prism_consumer_id')['posted_date'].min()
+    spending_over_time = spending_over_time.merge(initial_dates, on='prism_consumer_id', how='left', suffixes=('', '_initial'))
+    spending_over_time = spending_over_time.rename(columns={'posted_date_initial': 'initial_date'})
+
+    spending_over_time['days_between'] = spending_over_time['posted_date'] - spending_over_time['initial_date']
+
+    spending_over_time['months_between'] = (
+        (spending_over_time['posted_date'].dt.year - spending_over_time['initial_date'].dt.year) * 12 +
+        (spending_over_time['posted_date'].dt.month - spending_over_time['initial_date'].dt.month)
+    ).abs()
+
+    for weeks in range(7, 53, 7):    
+        spending_over_time[f'first_{weeks}_weeks'] = spending_over_time['days_between'].astype('int64') <= weeks
+
+    for months in range(3, 13, 3):    
+        spending_over_time[f'first_{months}_months'] = spending_over_time['months_between'] <= months
+
+    month_aggs = transaction_df[['prism_consumer_id']].drop_duplicates().reset_index(drop=True)
+
+    for months in range(3, 13, 3):  
+        months_df = spending_over_time[spending_over_time[f'first_{months}_months']]
+        
+        agg_df = (
+            months_df
+            .groupby('prism_consumer_id')
+            .agg(amount_sum=('amount', 'sum'), amount_std=('amount', 'std'), amount_mean=('amount', 'mean'))
+            .reset_index()
+        )
+
+        month_aggs = month_aggs.merge(
+            agg_df, on='prism_consumer_id', how='left', suffixes=('', f'_first_{months}_months')
+        )
+
+    result = transaction_df[['prism_consumer_id']].drop_duplicates().reset_index(drop=True)
+    spending_feats = pd.DataFrame({col: result['prism_consumer_id'].map(month_aggs[col]) for col in month_aggs.columns})
+    result = pd.concat([result, spending_feats], axis=1)
+    result = result.loc[:,~result.columns.duplicated()].copy()
+    return result
