@@ -476,7 +476,7 @@ class FeatureSelector:
         top_features = sorted_features[:top_n]
         
         features, scores = zip(*top_features)
-        plt.figure(figsize=(12, 6))
+        plt.figure(figsize=(12, 12))
         plt.barh(range(len(features)), scores)
         plt.yticks(range(len(features)), features)
         plt.xlabel('Importance Score')
