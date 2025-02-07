@@ -3,13 +3,20 @@ import json
 import inspect
 import hashlib
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix, roc_curve
-from sklearn.preprocessing import StandardScaler
+import numpy as np
+from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
-from datetime import datetime
+
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix, roc_curve, balanced_accuracy_score
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.feature_selection import mutual_info_classif
+
+from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
 
 
 def get_data():
@@ -135,34 +142,8 @@ def merge_features(dataframes):
     result = dataframes[0]
     for df in dataframes[1:]:
         result = pd.merge(result, df, on='prism_consumer_id', how='inner')  # Use 'inner' to keep consistent rows
-    print("Shape is: ", result.shape)
+    print("\nTotal Created Features: ", result.shape[1] - 1)
     return result
-
-def train_logistic_regression(train_df, feature_columns):
-    """
-    Trains a LogisticRegression model using the training dataframe.
-
-    Parameters:
-        train_df (pd.DataFrame): Training dataframe containing features and the target column "DQ_TARGET".
-
-    Returns:
-        LogisticRegression: The trained LogisticRegression model.
-        scaler: To be used again before making predictions.
-    """
-
-    # Define features (X) and target (y) for training
-    X_train = train_df[feature_columns]
-    y_train = train_df['DQ_TARGET']
-
-    # Scale data
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-
-    # Initialize and train the logistic regression model
-    model = LogisticRegression(random_state=123, class_weight="balanced", max_iter=1000)
-    model.fit(X_train_scaled, y_train)
-
-    return model, scaler
 
 class MetadataManager:
     """
@@ -278,7 +259,7 @@ def execute_selected_features(selected_features, account_df, transaction_df):
         else:
             print(f"- Updated features: {len(updated_features)}")
     
-    print(f"- Unchanged features: {len(unchanged_features)} (using cached results)")
+    print(f"- Unchanged feature creation functions: {len(unchanged_features)} (using cached results)")
     
     # Execute only new and updated features
     feature_dataframes = []
@@ -298,7 +279,7 @@ def execute_selected_features(selected_features, account_df, transaction_df):
         # Save updated metadata
         metadata_manager.save_metadata(metadata)
     else:
-        print("\nNo features need to be executed.")
+        print("\nNo feature creation functions need to be executed.")
     
     # For unchanged features, load from cache or recalculate if cache missing
     for fn in unchanged_features:
@@ -314,52 +295,341 @@ def execute_selected_features(selected_features, account_df, transaction_df):
     
     return feature_dataframes
 
+class FeatureSelector:
+    """
+    A class for selecting the most important features.
+    """
+    def __init__(self, train_df, feature_columns, forced_features=None, base_dir=None):
+        self.X = train_df[feature_columns]
+        self.y = train_df['DQ_TARGET']
+        
+        self.forced_features = forced_features if forced_features is not None else []
+        # Validate that each forced feature exists in the dataset
+        for feature in self.forced_features:
+            if feature not in self.X.columns:
+                raise ValueError(f"Forced feature '{feature}' not found in the dataset columns.")
+        
+        if base_dir is None:
+            self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        else:
+            self.base_dir = base_dir
+        self.results_dir = os.path.join(self.base_dir, 'data', 'temporary_data', 'feature_selection')
+        os.makedirs(self.results_dir, exist_ok=True)
+        
+        # Internal dictionary to store results for each method
+        self.results = {}
+        
+    def _convert_to_serializable(self, obj):
+        """
+        Convert numpy types to native Python types for JSON serialization.
+        """
+        if isinstance(obj, dict):
+            return {k: self._convert_to_serializable(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return [self._convert_to_serializable(x) for x in obj]
+        elif isinstance(obj, np.generic):
+            return obj.item()
+        else:
+            return obj
+        
+    def _compute_importance_scores(self, method):
+        """
+        Compute feature importance scores using the specified method.
+        
+        Parameters:
+            method (str): The feature selection method ('mutual_info', 'random_forest', 'xgboost')
+        
+        Returns:
+            dict: A dictionary mapping feature names to importance scores.
+        """
+        if method == 'mutual_info':
+            scores = mutual_info_classif(self.X, self.y)
+        elif method == 'random_forest':
+            rf = RandomForestClassifier(n_estimators=100, random_state=123)
+            rf.fit(self.X, self.y)
+            scores = rf.feature_importances_
+        elif method == 'xgboost':
+            xgb = XGBClassifier(random_state=123, eval_metric='logloss')
+            xgb.fit(self.X, self.y)
+            scores = xgb.feature_importances_
+        else:
+            raise ValueError(f"Unknown method: {method}")
+            
+        importance_dict = dict(zip(self.X.columns, scores))
+        return importance_dict
+    
+    def _apply_forced_features(self, sorted_features, n_features):
+        """
+        Combine forced features with the remaining top features until the desired count is reached.
+        
+        Parameters:
+            sorted_features (list of tuples): List of (feature, importance) sorted in descending order.
+            n_features (int): Desired total number of features.
+        
+        Returns: List of selected feature names.
+        """
+        # Start with forced features
+        selected = list(self.forced_features)
+        for feature, _ in sorted_features:
+            if feature not in selected:
+                selected.append(feature)
+            if len(selected) >= n_features:
+                break
+        return selected
+    
+    def _save_feature_selection_results(self, importance_dict, selected_features, method):
+        """
+        Save feature selection results to a JSON file.
+        The file is overwritten each time for the given method.
+        """
+        results = {
+            'timestamp': datetime.now().strftime('%Y%m%d_%H%M%S'),
+            'method': method,
+            'importance_scores': self._convert_to_serializable(importance_dict),
+            'selected_features': selected_features
+        }
+        
+        filepath = os.path.join(self.results_dir, f'feature_selection_{method}.json')
+        with open(filepath, 'w') as f:
+            json.dump(results, f, indent=2)
+    
+    def _select_features_for_method(self, method, n_features):
+        """
+        Compute importance scores and select top features (including forced features) for a given method.
+        
+        Parameters:
+            method (str): The feature selection method.
+            n_features (int): The number of features to select.
+        
+        Returns:
+            tuple: (selected_features, importance_dict)
+        """
+        # Compute importance scores
+        importance_dict = self._compute_importance_scores(method)
+        
+        # Sort features by importance (descending)
+        sorted_features = sorted(importance_dict.items(), key=lambda x: x[1], reverse=True)
+        
+        # Merge forced features with top-ranked features
+        selected_features = self._apply_forced_features(sorted_features, n_features)
+        
+        # Save results to file (overwriting previous file for this method)
+        self._save_feature_selection_results(importance_dict, selected_features, method)
+        
+        return selected_features, importance_dict
+    
+    def run_feature_selection(self, methods, n_features=50):
+        """
+        Run feature selection for a list of methods.
+        
+        Parameters:
+            methods: List of feature selection method names (e.g., ['xgboost', 'random_forest']).
+            n_features: Number of features to select.
+        """
+        for method in methods:
+            selected_features, importance_dict = self._select_features_for_method(method, n_features)
+            self.results[method] = {
+                'selected_features': selected_features,
+                'importance_scores': importance_dict
+            }
+    
+    def get_selected_features(self, method):
+        """
+        Retrieve the selected features for the specified method.
+        
+        Parameters: Feature selection method (str).
+        
+        Returns: List of selected feature names.
+        """
+        if method in self.results:
+            return self.results[method]['selected_features']
+        else:
+            raise ValueError(f"No results found for method '{method}'. Run feature selection first.")
+    
+    def get_importance_scores(self, method):
+        """
+        Retrieve the importance scores for the specified method.
+        
+        Parameters: Feature selection method (str).
+        
+        Returns: Dictionary of feature importance scores.
+        """
+        if method in self.results:
+            return self.results[method]['importance_scores']
+        else:
+            raise ValueError(f"No results found for method '{method}'. Run feature selection first.")
+    
+    def plot_feature_importance(self, method, top_n=20):
+        """
+        Plot the feature importance scores for the specified method.
+        
+        Parameters:
+            method (str): The feature selection method whose importance scores will be plotted.
+            top_n (int): Number of top features to display in the plot.
+        """
+        if method not in self.results:
+            raise ValueError(f"No results found for method '{method}'. Run feature selection first.")
+            
+        importance_dict = self.results[method]['importance_scores']
+        # Sort features by importance (descending) and select top_n
+        sorted_features = sorted(importance_dict.items(), key=lambda x: x[1], reverse=True)
+        top_features = sorted_features[:top_n]
+        
+        features, scores = zip(*top_features)
+        plt.figure(figsize=(12, 6))
+        plt.barh(range(len(features)), scores)
+        plt.yticks(range(len(features)), features)
+        plt.xlabel('Importance Score')
+        plt.title(f'Top {top_n} Most Important Features ({method})')
+        plt.gca().invert_yaxis()  # Highest importance at the top
+        plt.tight_layout()
+        plt.show()
+
+def train_model(train_df, feature_columns, model_name="logistic", random_state=123):
+    """
+    Trains a specified model (LogisticRegression, RandomForest ...) on the training dataframe
+    using a predefined set of hyperparameters.
+
+    Parameters:
+    -----------
+    train_df : pd.DataFrame
+        Training dataframe containing the features and the target column 'DQ_TARGET'.
+    feature_columns : list
+        The feature columns to be used for training.
+    model_name : str (default='logistic')
+        Identifier for which model to train. Can be extended to other model names.
+
+    Returns:
+    --------
+    model : sklearn model
+        The trained model instance.
+    scaler : StandardScaler
+        The fitted scaler used to transform the training (and later test) data.
+    """
+
+    # Predefined model parameters for each model_name
+    # Adjust or extend as needed for your specific use case
+    model_params_dict = {
+        "logistic": {
+            "class": LogisticRegression,
+            "params": {
+                "class_weight": "balanced",
+                "max_iter": 1000
+            }
+        },
+        "random_forest": {
+            "class": RandomForestClassifier,
+            "params": {
+                "class_weight": "balanced",
+                "n_estimators": 100
+            }
+        },
+        "gradient_boosting": {
+            "class": GradientBoostingClassifier,
+            "params": {
+                "n_estimators": 100,
+                "max_depth": 3
+            }
+        },
+        "xgboost": {
+            "class": XGBClassifier,
+            "params": {
+                "eval_metric": "logloss",
+                "scale_pos_weight": 19, # (#negatives / #positives) 95/15
+                "n_estimators": 100,
+                "learning_rate": 0.1,       # Lower learning rates can help reduce overfitting.
+                "max_depth": 3,            # Deeper trees can overfit;
+                "subsample": 0.8,          # Row subsampling: helps reduce variance.
+                "colsample_bytree": 0.8,   # Feature subsampling: also helps reduce variance.
+                "reg_lambda": 1.0         # L2 regularization (default=1)
+            }
+        },
+        "lightgbm": {
+            "class": LGBMClassifier,
+            "params": {
+                "class_weight": "balanced"
+                # For heavily imbalanced data, you can also tune "is_unbalance" or adjust "scale_pos_weight".
+            }
+        }
+    }
+
+    # Check if the requested model is in our dictionary
+    if model_name not in model_params_dict:
+        raise ValueError(
+            f"Unknown model_name '{model_name}'. "
+            f"Valid options are: {list(model_params_dict.keys())}"
+        )
+
+    chosen_model_class = model_params_dict[model_name]["class"]
+    chosen_model_params = model_params_dict[model_name]["params"]
+
+    # Inject the random_state into the model’s parameters (if it’s relevant)
+    chosen_model_params["random_state"] = random_state
+
+    # Initialize model with the predefined parameters
+    model = chosen_model_class(**chosen_model_params)
+
+    # Define features (X) and target (y) for training
+    X_train = train_df[feature_columns]
+    y_train = train_df['DQ_TARGET']
+
+    # Scale data
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+
+    # Train the model
+    model.fit(X_train_scaled, y_train)
+
+    return model, scaler
+
 def predict_and_analyze_model(model, scaler, train_df, test_df, feature_columns):
     """
     Predicts and evaluates the model using accuracy, ROC AUC score, and a detailed confusion matrix.
     
     Parameters:
-        model (LogisticRegression): The trained logistic regression model.
-        scaler (StandardScaler): The fitted scaler used during training.
-        train_df (pd.DataFrame): Training dataframe containing features and the target column "DQ_TARGET".
-        test_df (pd.DataFrame): Testing dataframe containing features and the target column "DQ_TARGET".
-        feature_columns (list): List of column names to use as features.
+    -----------
+    model : (e.g., LogisticRegression, RandomForest).
+    scaler : The fitted scaler used during training.
+    train_df : Training dataframe containing features and the target column "DQ_TARGET".
+    test_df : Testing dataframe containing features and the target column "DQ_TARGET".
+    feature_columns : List of column names to use as features.
     """
-    # Get raw train features, then scale them with the same scaler
+
+    # ===== Training Performance =====
     X_train = train_df[feature_columns]
-    X_train_scaled = scaler.transform(X_train)
     y_train = train_df['DQ_TARGET']
+    X_train_scaled = scaler.transform(X_train)
 
-    # Use the scaled array for predictions
-    y_pred_proba_train = model.predict_proba(X_train_scaled)[:, 1]
+    # Make predictions on training data
     y_pred_train = model.predict(X_train_scaled)
-    
-    # Calculate training set metrics
     train_accuracy = accuracy_score(y_train, y_pred_train)
-    train_roc_auc = roc_auc_score(y_train, y_pred_proba_train)
+    train_balanced_acc = balanced_accuracy_score(y_train, y_pred_train)
 
-    # Get raw test features, then scale them
+    # Some models might not have predict_proba
+    y_pred_proba_train = model.predict_proba(X_train_scaled)[:, 1] if hasattr(model, "predict_proba") else None
+    train_roc_auc = roc_auc_score(y_train, y_pred_proba_train) if y_pred_proba_train is not None else None
+
+    # ===== Testing Performance =====
     X_test = test_df[feature_columns]
-    X_test_scaled = scaler.transform(X_test)
     y_test = test_df['DQ_TARGET']
+    X_test_scaled = scaler.transform(X_test)
 
-    # Use scaled test data for predictions
-    y_pred_proba = model.predict_proba(X_test_scaled)[:, 1]
-    y_pred = model.predict(X_test_scaled)
-
-    # Calculate accuracy and ROC AUC for the test set
-    accuracy = accuracy_score(y_test, y_pred)
-    roc_auc = roc_auc_score(y_test, y_pred_proba)
-
-    # Create a confusion matrix for the test set
-    conf_matrix = confusion_matrix(y_test, y_pred)
+    y_pred_test = model.predict(X_test_scaled)
+    accuracy = accuracy_score(y_test, y_pred_test)
+    balanced_acc = balanced_accuracy_score(y_test, y_pred_test)
+    
+    y_pred_proba_test = model.predict_proba(X_test_scaled)[:, 1] if hasattr(model, "predict_proba") else None
+    roc_auc = roc_auc_score(y_test, y_pred_proba_test) if y_pred_proba_test is not None else None
+    
+    conf_matrix = confusion_matrix(y_test, y_pred_test)
     conf_matrix_df = pd.DataFrame(
         conf_matrix,
         index=['Actual Negative', 'Actual Positive'],
         columns=['Predicted Negative', 'Predicted Positive']
     )
 
-    # Plot the confusion matrix
+    # ===== Visualizations =====
+    # Confusion Matrix
     plt.figure(figsize=(5, 4))
     sns.heatmap(conf_matrix_df, annot=True, fmt="d", cmap="Blues", cbar=False)
     plt.title("Confusion Matrix")
@@ -367,25 +637,30 @@ def predict_and_analyze_model(model, scaler, train_df, test_df, feature_columns)
     plt.xlabel("Predicted")
     plt.show()
 
-    # Plot ROC
-    fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba)
-    plt.figure(figsize=(5, 4))
-    plt.plot(fpr, tpr, label='Model')
-    plt.plot([0, 1], [0, 1], linestyle='--', label='Random Chance')
-    plt.title("ROC Curve")
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.legend()
-    plt.show()
+    # ROC Curve
+    if y_pred_proba_test is not None:
+        fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba_test)
+        plt.figure(figsize=(5, 4))
+        plt.plot(fpr, tpr, label='Model')
+        plt.plot([0, 1], [0, 1], linestyle='--', label='Random Chance')
+        plt.title("ROC Curve")
+        plt.xlabel("False Positive Rate")
+        plt.ylabel("True Positive Rate")
+        plt.legend()
+        plt.show()
+    else:
+        print("ROC Curve not available for the chosen model.")
 
-    # Print the evaluation metrics for the test set
+    # ===== Print metrics =====
     print("=== TEST METRICS ===")
     print("Accuracy:", accuracy)
-    print("ROC AUC Score:", roc_auc)
-    print("Confusion Matrix:\n", conf_matrix_df)
+    if roc_auc is not None:
+        print("ROC AUC Score:", roc_auc)
+    print("Balanced Accuracy:", balanced_acc, end="\n\n")
+    print("Confusion Matrix:\n", conf_matrix_df, end="\n\n")
 
-    # Print training metrics
     print("=== TRAINING METRICS ===")
     print("Train Accuracy:", train_accuracy)
-    print("Train ROC AUC:", train_roc_auc)
-    print()
+    if train_roc_auc is not None:
+        print("Train ROC AUC:", train_roc_auc)
+    print("Train Balanced Accuracy:", train_balanced_acc)
