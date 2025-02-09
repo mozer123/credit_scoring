@@ -10,7 +10,10 @@ import seaborn as sns
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix, roc_curve, balanced_accuracy_score
+from sklearn.metrics import (accuracy_score, roc_auc_score, 
+                             confusion_matrix, roc_curve, 
+                             balanced_accuracy_score,
+                             classification_report)
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.feature_selection import mutual_info_classif
@@ -656,11 +659,22 @@ def predict_and_analyze_model(model, scaler, train_df, test_df, feature_columns)
     print("Accuracy:", accuracy)
     if roc_auc is not None:
         print("ROC AUC Score:", roc_auc)
-    print("Balanced Accuracy:", balanced_acc, end="\n\n")
-    print("Confusion Matrix:\n", conf_matrix_df, end="\n\n")
+    print("Balanced Accuracy:", balanced_acc)
+    print("Classification Report:\n", classification_report(y_test, y_pred_test))
 
     print("=== TRAINING METRICS ===")
     print("Train Accuracy:", train_accuracy)
     if train_roc_auc is not None:
         print("Train ROC AUC:", train_roc_auc)
     print("Train Balanced Accuracy:", train_balanced_acc)
+
+def filter_unknown(consumer_df, account_df, transaction_df):
+    transaction_unknown = (set(consumer_df['prism_consumer_id']) - set(transaction_df['prism_consumer_id']))
+    account_unknown = (set(consumer_df['prism_consumer_id']) - set(account_df['prism_consumer_id']))
+    total_unknown = account_unknown.union(transaction_unknown)
+    
+    filtered_consumer_df = consumer_df[~consumer_df['prism_consumer_id'].isin(total_unknown)]
+    filtered_account_df = account_df[~account_df['prism_consumer_id'].isin(total_unknown)]
+    filtered_transaction_df = transaction_df[~transaction_df['prism_consumer_id'].isin(total_unknown)]
+
+    return filtered_consumer_df, filtered_account_df, filtered_transaction_df

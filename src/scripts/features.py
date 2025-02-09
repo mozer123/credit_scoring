@@ -196,3 +196,89 @@ def outflow_over_time(accountransaction_df, transaction_df):
     result = pd.concat([result, spending_feats], axis=1)
     result = result.loc[:,~result.columns.duplicated()].copy()
     return result
+
+def outflow_over_time_fix(accounttransaction_df, transaction_df):
+    import pandas as pd
+
+    # -------------------------------
+    # 1. Filter and Prepare Transactions
+    # -------------------------------
+    # Filter only DEBIT transactions and make a copy to avoid SettingWithCopyWarning
+    outflows = transaction_df[transaction_df.credit_or_debit == 'DEBIT'].copy()
+    
+    # Convert the posted_date column to datetime
+    outflows['posted_date'] = pd.to_datetime(outflows['posted_date'])
+    
+    # Sort transactions by consumer and date
+    spending_over_time = outflows.sort_values(['prism_consumer_id', 'posted_date']).copy()
+    
+    # -------------------------------
+    # 2. Compute Time Differences per Consumer
+    # -------------------------------
+    # For each consumer, find the earliest posted_date (the "initial_date")
+    initial_dates = spending_over_time.groupby('prism_consumer_id')['posted_date'].min().reset_index()
+    initial_dates = initial_dates.rename(columns={'posted_date': 'initial_date'})
+    
+    # Merge the initial_date back into the transactions
+    spending_over_time = spending_over_time.merge(initial_dates, on='prism_consumer_id', how='left')
+    
+    # Compute the difference in time from the initial transaction
+    spending_over_time['days_between'] = spending_over_time['posted_date'] - spending_over_time['initial_date']
+    spending_over_time['months_between'] = (
+        (spending_over_time['posted_date'].dt.year - spending_over_time['initial_date'].dt.year) * 12 +
+        (spending_over_time['posted_date'].dt.month - spending_over_time['initial_date'].dt.month)
+    ).abs()
+    
+    # -------------------------------
+    # 3. Create Weekly and Monthly Indicator Columns
+    # -------------------------------
+    # Weekly indicators:
+    # The original code used for weeks in range(7, 53, 7), but note that
+    # converting the timedelta directly to int64 gives nanoseconds.
+    # Instead, we compare the number of days.
+    # For example, if weeks == 7 then we check if the transaction happened within 7*7 = 49 days.
+    for weeks in range(7, 53, 7):    
+        spending_over_time[f'first_{weeks}_weeks'] = spending_over_time['days_between'].dt.days <= (weeks * 7)
+    
+    # Monthly indicators: Check if a transaction occurred within a given number of months.
+    for months in range(3, 13, 3):    
+        spending_over_time[f'first_{months}_months'] = spending_over_time['months_between'] <= months
+
+    # -------------------------------
+    # 4. Aggregate Spending Features over Time Windows
+    # -------------------------------
+    # Start with a dataframe of unique consumers
+    month_aggs = transaction_df[['prism_consumer_id']].drop_duplicates().reset_index(drop=True)
+    
+    # For each monthly window (3, 6, 9, 12 months), calculate aggregated spending statistics
+    for months in range(3, 13, 3):  
+        # Filter transactions within the first 'months' months
+        months_df = spending_over_time[spending_over_time[f'first_{months}_months']]
+        
+        # Aggregate spending statistics per consumer
+        agg_df = (
+            months_df
+            .groupby('prism_consumer_id')
+            .agg(
+                **{
+                    f'amount_sum_first_{months}_months': ('amount', 'sum'),
+                    f'amount_std_first_{months}_months': ('amount', 'std'),
+                    f'amount_mean_first_{months}_months': ('amount', 'mean')
+                }
+            )
+            .reset_index()
+        )
+        
+        # Merge the new aggregates into the month_aggs dataframe
+        month_aggs = month_aggs.merge(agg_df, on='prism_consumer_id', how='left')
+
+    # -------------------------------
+    # 5. Build the Final Result
+    # -------------------------------
+    # Create a dataframe of unique consumers for the final result
+    result = transaction_df[['prism_consumer_id']].drop_duplicates().reset_index(drop=True)
+    
+    # Merge the aggregated features directly into result
+    result = result.merge(month_aggs, on='prism_consumer_id', how='left')
+    
+    return result
