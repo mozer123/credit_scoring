@@ -200,10 +200,7 @@ def outflow_over_time(accountransaction_df, transaction_df):
 def outflow_over_time_fix(accounttransaction_df, transaction_df):
     import pandas as pd
 
-    # -------------------------------
-    # 1. Filter and Prepare Transactions
-    # -------------------------------
-    # Filter only DEBIT transactions and make a copy to avoid SettingWithCopyWarning
+    # Filter and Prepare Transactions
     outflows = transaction_df[transaction_df.credit_or_debit == 'DEBIT'].copy()
     
     # Convert the posted_date column to datetime
@@ -212,10 +209,7 @@ def outflow_over_time_fix(accounttransaction_df, transaction_df):
     # Sort transactions by consumer and date
     spending_over_time = outflows.sort_values(['prism_consumer_id', 'posted_date']).copy()
     
-    # -------------------------------
-    # 2. Compute Time Differences per Consumer
-    # -------------------------------
-    # For each consumer, find the earliest posted_date (the "initial_date")
+    # Compute Time Differences per Consumer
     initial_dates = spending_over_time.groupby('prism_consumer_id')['posted_date'].min().reset_index()
     initial_dates = initial_dates.rename(columns={'posted_date': 'initial_date'})
     
@@ -229,25 +223,15 @@ def outflow_over_time_fix(accounttransaction_df, transaction_df):
         (spending_over_time['posted_date'].dt.month - spending_over_time['initial_date'].dt.month)
     ).abs()
     
-    # -------------------------------
-    # 3. Create Weekly and Monthly Indicator Columns
-    # -------------------------------
-    # Weekly indicators:
-    # The original code used for weeks in range(7, 53, 7), but note that
-    # converting the timedelta directly to int64 gives nanoseconds.
-    # Instead, we compare the number of days.
-    # For example, if weeks == 7 then we check if the transaction happened within 7*7 = 49 days.
+    # Create Weekly and Monthly Indicator Columns
     for weeks in range(7, 53, 7):    
         spending_over_time[f'first_{weeks}_weeks'] = spending_over_time['days_between'].dt.days <= (weeks * 7)
     
-    # Monthly indicators: Check if a transaction occurred within a given number of months.
+    # Check if a transaction occurred within a given number of months
     for months in range(3, 13, 3):    
         spending_over_time[f'first_{months}_months'] = spending_over_time['months_between'] <= months
 
-    # -------------------------------
-    # 4. Aggregate Spending Features over Time Windows
-    # -------------------------------
-    # Start with a dataframe of unique consumers
+    # Aggregate Spending Features over Time Windows
     month_aggs = transaction_df[['prism_consumer_id']].drop_duplicates().reset_index(drop=True)
     
     # For each monthly window (3, 6, 9, 12 months), calculate aggregated spending statistics
@@ -272,9 +256,7 @@ def outflow_over_time_fix(accounttransaction_df, transaction_df):
         # Merge the new aggregates into the month_aggs dataframe
         month_aggs = month_aggs.merge(agg_df, on='prism_consumer_id', how='left')
 
-    # -------------------------------
-    # 5. Build the Final Result
-    # -------------------------------
+
     # Create a dataframe of unique consumers for the final result
     result = transaction_df[['prism_consumer_id']].drop_duplicates().reset_index(drop=True)
     
@@ -282,3 +264,79 @@ def outflow_over_time_fix(accounttransaction_df, transaction_df):
     result = result.merge(month_aggs, on='prism_consumer_id', how='left')
     
     return result
+
+def balance_over_time(accounttransaction_df, transaction_df):
+    import pandas as pd
+
+    # Define a helper function that returns the real starting balance for each consumer
+    def find_real_start_balance(grp):
+        """
+        Given all rows for one consumer, find their earliest known 'balance' 
+        (the 'anchor'), and compute the 'start' balance at the earliest 
+        transaction date by subtracting inflows that happened before that anchor.
+        """
+        # Identify the earliest "anchor" row where we actually have a known balance
+        anchor_rows = grp.dropna(subset=["balance"]).sort_values("year_month_y")
+        if anchor_rows.empty:
+            return pd.Series({"start_balance": float(0)})
+
+        anchor_balance = anchor_rows["balance"].iloc[0]
+        anchor_month   = anchor_rows["year_month_y"].iloc[0]
+        
+        # Sum up all inflows that happened before that anchor month
+        inflow_before_anchor = grp.loc[
+            grp["year_month_x"] <= anchor_month, 
+            "monthly_net_inflow"
+        ].sum()
+        
+        start_balance = anchor_balance - inflow_before_anchor
+        
+        return pd.Series({"start_balance": start_balance})
+
+    txn_df = transaction_df.copy()
+
+    # Calculate monthly net inflow
+    txn_df['year_month'] = transaction_df['posted_date'].dt.to_period('M')
+
+    txn_aggregated = txn_df.groupby(['prism_consumer_id', 'year_month']).agg(
+        monthly_inflow=('amount', lambda x: x[txn_df.loc[x.index, 'credit_or_debit'] == 'CREDIT'].sum()),
+        monthly_outflow=('amount', lambda x: x[txn_df.loc[x.index, 'credit_or_debit'] == 'DEBIT'].sum())
+    ).reset_index()
+
+    txn_aggregated['monthly_net_inflow'] = txn_aggregated.apply(
+        lambda row: row['monthly_inflow'] - row['monthly_outflow'], axis = 1)
+    txn_aggregated = txn_aggregated[['prism_consumer_id', 'year_month', 'monthly_net_inflow']]
+
+
+    # Calculate aggregated net inflow for each consumer per month
+    txn_aggregated['cumulative_inflow'] = txn_aggregated.groupby('prism_consumer_id')['monthly_net_inflow'].cumsum()
+
+    # Get account balance with year_month
+    acct_df = accounttransaction_df.copy()
+    acct_df['year_month'] = pd.to_datetime(acct_df['balance_date']).dt.to_period('M')
+    balance_df = acct_df.groupby(['prism_consumer_id', 'year_month']).agg(balance = ('balance', 'sum')).reset_index()
+
+    # Merge processed account df and txn df
+    merged = pd.merge(txn_aggregated, balance_df[['prism_consumer_id','balance', 'year_month']], 
+                  on='prism_consumer_id', how='left')
+    
+    # Group by consumer and apply the function to find real starting balance
+    real_starts = (
+        merged
+        .groupby("prism_consumer_id", group_keys=False)
+        .apply(find_real_start_balance)
+        .reset_index()
+    )
+
+    merged = pd.merge(txn_aggregated, real_starts[['prism_consumer_id','start_balance']], 
+                  on='prism_consumer_id', how='left')
+    
+    # Calculate the monthly balance for each consumer
+    merged['monthly_balance'] = merged['cumulative_inflow'] + merged['start_balance']
+    monthly_balance_df = merged[['prism_consumer_id', 'year_month', 'monthly_balance']]
+
+    # Calculate standard deviation of monthly balance for each consumer
+    balance_std_df = monthly_balance_df.groupby('prism_consumer_id').agg(balance_std = ('monthly_balance', 'std')).reset_index()
+
+    return balance_std_df
+        
