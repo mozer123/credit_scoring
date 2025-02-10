@@ -1,84 +1,80 @@
-# NLP Credit Score Development
-DSC180A - B02 - Group 2
+# Predicting Loan Default Probability Using Transaction Data
+
+A huge thank you 🙌 to the capstone teaching team at the Halıcıoğlu Data Science Institute at UC San Diego 🎓 and our mentors at Prism Data for their invaluable guidance and support. Your expertise and mentorship have been instrumental in bringing this project to life! 🌟
 
 ## Overview
-This project involves developing a credit scoring model using natural language processing (NLP) techniques on transaction data. The goal is to improve credit risk assessment by analyzing transaction details and capturing insights from unstructured text data in transaction memos. For reproducibility, a subset of the data is provided.
+
+This project focuses on developing a credit scoring model 💳 by leveraging transaction data and applying natural language processing (NLP) techniques 🧠. The primary objective is to enhance credit risk assessment ⚖️ by analyzing transaction details and extracting insights from unstructured text data found in transaction memos.
+
+The project involves data preprocessing ⚙️, feature engineering 🔧, and model development 📈 to predict loan default probabilities. Transaction data is used to create meaningful features that improve predictive performance. For reproducibility, a subset of the data is provided.
+
+For NLP-based transaction categorization, refer to the `category_classification` branch. This branch (`default_prediction`) focuses on feature engineering and building models to predict loan default probabilities.
 
 ### Data Privacy
+
 The dataset used in this project is derived from Prism Data, which contains sensitive and proprietary information about financial transactions. Due to confidentiality agreements and privacy regulations, the full dataset cannot be shared publicly. Prism Data includes detailed financial information that, if exposed, could compromise the privacy of individuals and the intellectual property of the data provider.
 
 To allow for reproducibility of the methods and analysis presented in this project while respecting these confidentiality constraints, we are providing a small, representative subset of 5000 rows. This subset captures the essential characteristics of the full dataset but does not reveal any sensitive or proprietary details. By working with this sample, other researchers can replicate the data preprocessing, feature engineering, and modeling steps without requiring access to the complete, confidential dataset.
 
-### Data Access and Storage
-To run this project, you’ll need to download the dataset subsets and place them in the appropriate directory as described below.
+### File Structure
 
-1. Download the dataset subsets:
-    - **Inflow** Subset (2500 rows)
-    - **Outflow** Subset (2500 rows)
-2. Save these files in the project’s data directory. Your project directory should look like this:  
-```
-├── data  
-│   ├── inflow_subset_2500.csv  
-│   └── outflow_subset_2500.csv  
-├── src  
-│   ├── 01_EDA.ipynb  
-│   ├── 02_bias_check.ipynb  
-│   ├── 03_memo.ipynb  
-│   ├── 04_feat_engineering.ipynb  
-│   ├── 05_LLM.ipynb  
-│   ├── 06_models.ipynb  
-│   ├── 07_income.ipynb  
-│   └── 08_measure_inflow.ipynb  
-├── requirements.txt  
-└── README.md  
-```
-
-### Software Dependencies
-To run the code, make sure you have Python installed. Install the necessary libraries by running the following command:
+After cloning this repository, your project directory should look like this:
 
 ```
-pip install -r requirements.txt
+📂 src/
+┣ 📂 scripts/
+┃ ┣ 📜 features.py - Contains functions for feature engineering and feature creation.
+┃ ┣ 📜 utilities.py - Utility functions used across the project.
+┣ 📜 main.ipynb - The main Jupyter Notebook to execute the project workflow.
+┣ 📂 data/
+┃ ┣ 📂 temporary_data/ - Stores temporary or intermediate data during processing.
+┃ ┣ 📂 raw_data/ - Stores original, unprocessed data files.
+┣ 📜 requirements.txt
+┣ 📜 README.md
 ```
-
-The `requirements.txt` file should contain the following libraries:
-
-- pandas  
-- numpy  
-- scikit-learn  
-- matplotlib  
-- catboost
-- datasets
-- fasttext
-- sklearn
-- transformers
-- xgboost
 
 ### Reproducing Results
-To reproduce results, navigate to the `src` directory and run the Jupyter notebooks in the specified order.
 
-1. Set up Jupyter Notebook: If Jupyter is not installed, you can install it with:
+To ensure a smooth reproduction of results, follow these steps on a Windows machine. Before proceeding, make sure you have Python installed: [Download Python](https://www.python.org/downloads/).
 
-```
-pip install jupyter
-```
+1. **Clone this Repository**  
+   Open a terminal or command prompt and run:
 
-2. Open and Run the Notebooks: From your terminal, navigate to the `src` folder and start Jupyter Notebook:
+   ```sh
+   git clone https://github.com/mozer123/credit_scoring.git
+   cd credit_scoring
+   ```
 
-```
-jupyter notebook
-```
+2. **Create a Virtual Environment**  
+   Run the following command in the project directory:
 
-This will open Jupyter in your browser. Navigate to the relevant notebook files (e.g., `01_EDA.ipynb`, `02_bias_check.ipynb`, etc.) and run them in order.
+   ```sh
+   python -m venv env
+   ```
 
-3. Run Each Notebook in Order:
-   - `01_EDA.ipynb`: Run all cells to perform exploratory data analysis.
-   - `02_bias_check.ipynb`: Run this notebook to check for any biases in the dataset.
-   - `03_memo.ipynb`: Run the memo preprocessing steps.
-   - `04_feat_engineering.ipynb`: Execute this notebook to perform feature engineering.
-   - `05_LLM.ipynb`: Runs language model-related code if relevant.
-   - `06_models.ipynb`: Train the models as specified in this notebook.
-   - `07_income.ipynb` and `08_measure_inflow.ipynb`: Initial exploration and analysis on the inflow dataset.
+3. **Activate the Virtual Environment**
 
-Each notebook should be self-contained and will reproduce the steps for data preprocessing, feature engineering, and model training as needed.
+   ```sh
+   env\Scripts\activate
+   ```
 
-4. Saving Results: Be sure to save the notebook outputs after running each cell to capture the results.
+4. **Install Dependencies**  
+   Install the required libraries using:
+
+   ```sh
+   pip install -r requirements.txt
+   ```
+
+5. **Launch Jupyter Notebook**  
+   Start a Jupyter Notebook by running:
+
+   ```sh
+   jupyter lab
+   ```
+
+6. **Run the Notebook**
+   - A browser window will open.
+   - Navigate to `main.ipynb` and open it.
+   - Run the cells in order to reproduce the results.
+
+Following these steps ensures that all necessary dependencies are installed, and the environment is correctly set up for executing the notebook. 🚀
