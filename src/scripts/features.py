@@ -266,77 +266,146 @@ def outflow_over_time_fix(accounttransaction_df, transaction_df):
     return result
 
 def balance_over_time(accounttransaction_df, transaction_df):
-    import pandas as pd
+    """
+    Calculate monthly balance information for each consumer and extract multiple features
+    based on the monthly balance data.
 
-    # Define a helper function that returns the real starting balance for each consumer
+    The function:
+      1. Computes monthly net inflow based on transaction data.
+      2. Computes cumulative net inflow per consumer.
+      3. Merges the cumulative inflow with account balance data to determine a 'start_balance'
+         (the real starting balance) per consumer.
+      4. Computes the monthly balance as the sum of cumulative inflow and start_balance.
+      5. For each consumer, extracts summary statistics and additional features including:
+         - Standard deviation of monthly balance.
+         - Mean monthly balance.
+         - Median monthly balance.
+         - Maximum monthly balance.
+         - Minimum monthly balance.
+         - Range (max minus min).
+         - Count of months with balance information.
+         - Coefficient of variation (std/mean).
+         - Trend (slope) of monthly balance over time.
+         
+    Parameters:
+        accounttransaction_df (pd.DataFrame): DataFrame with account-level data (including 'balance' and 'balance_date').
+        transaction_df (pd.DataFrame): DataFrame with transaction-level data (including 'posted_date', 'amount', and 'credit_or_debit').
+
+    Returns:
+        pd.DataFrame: A DataFrame indexed by 'prism_consumer_id' containing the additional balance features.
+    """
+    import pandas as pd
+    import numpy as np
+
+    # Helper function to calculate the real starting balance for each consumer.
     def find_real_start_balance(grp):
         """
-        Given all rows for one consumer, find their earliest known 'balance' 
-        (the 'anchor'), and compute the 'start' balance at the earliest 
-        transaction date by subtracting inflows that happened before that anchor.
+        For a given consumer, find the earliest available account balance (the "anchor")
+        and compute the starting balance by subtracting inflows that occurred before that anchor.
         """
-        # Identify the earliest "anchor" row where we actually have a known balance
+        # 'year_month_y' comes from account balance; sort by it
         anchor_rows = grp.dropna(subset=["balance"]).sort_values("year_month_y")
         if anchor_rows.empty:
-            return pd.Series({"start_balance": float(0)})
-
+            return pd.Series({"start_balance": 0.0})
+        
         anchor_balance = anchor_rows["balance"].iloc[0]
         anchor_month   = anchor_rows["year_month_y"].iloc[0]
         
-        # Sum up all inflows that happened before that anchor month
-        inflow_before_anchor = grp.loc[
-            grp["year_month_x"] <= anchor_month, 
-            "monthly_net_inflow"
-        ].sum()
+        # Sum inflows from the transaction side (year_month_x) before or equal to the anchor month.
+        inflow_before_anchor = grp.loc[grp["year_month_x"] <= anchor_month, "monthly_net_inflow"].sum()
         
         start_balance = anchor_balance - inflow_before_anchor
         
         return pd.Series({"start_balance": start_balance})
 
+    # --- Process Transaction Data ---
     txn_df = transaction_df.copy()
-
-    # Calculate monthly net inflow
+    # Create a monthly period column based on transaction posted_date.
     txn_df['year_month'] = transaction_df['posted_date'].dt.to_period('M')
-
+    
+    # Aggregate transactions: calculate monthly inflow and outflow.
     txn_aggregated = txn_df.groupby(['prism_consumer_id', 'year_month']).agg(
         monthly_inflow=('amount', lambda x: x[txn_df.loc[x.index, 'credit_or_debit'] == 'CREDIT'].sum()),
         monthly_outflow=('amount', lambda x: x[txn_df.loc[x.index, 'credit_or_debit'] == 'DEBIT'].sum())
     ).reset_index()
-
+    
+    # Calculate net inflow per month.
     txn_aggregated['monthly_net_inflow'] = txn_aggregated.apply(
-        lambda row: row['monthly_inflow'] - row['monthly_outflow'], axis = 1)
+        lambda row: row['monthly_inflow'] - row['monthly_outflow'], axis=1)
     txn_aggregated = txn_aggregated[['prism_consumer_id', 'year_month', 'monthly_net_inflow']]
-
-
-    # Calculate aggregated net inflow for each consumer per month
+    
+    # Calculate cumulative net inflow for each consumer.
     txn_aggregated['cumulative_inflow'] = txn_aggregated.groupby('prism_consumer_id')['monthly_net_inflow'].cumsum()
-
-    # Get account balance with year_month
+    
+    # --- Process Account Data ---
     acct_df = accounttransaction_df.copy()
+    # Create a monthly period column from the balance_date.
     acct_df['year_month'] = pd.to_datetime(acct_df['balance_date']).dt.to_period('M')
-    balance_df = acct_df.groupby(['prism_consumer_id', 'year_month']).agg(balance = ('balance', 'sum')).reset_index()
-
-    # Merge processed account df and txn df
-    merged = pd.merge(txn_aggregated, balance_df[['prism_consumer_id','balance', 'year_month']], 
-                  on='prism_consumer_id', how='left')
+    # Aggregate account balances by consumer and month.
+    balance_df = acct_df.groupby(['prism_consumer_id', 'year_month']).agg(
+        balance=('balance', 'sum')
+    ).reset_index()
     
-    # Group by consumer and apply the function to find real starting balance
-    real_starts = (
-        merged
-        .groupby("prism_consumer_id", group_keys=False)
-        .apply(find_real_start_balance)
-        .reset_index()
+    # --- Merge Transaction and Account Data ---
+    # Merge aggregated transaction data with account balance data.
+    # Use different suffixes for the 'year_month' columns to differentiate source.
+    merged = pd.merge(
+        txn_aggregated, 
+        balance_df[['prism_consumer_id', 'balance', 'year_month']], 
+        on='prism_consumer_id', 
+        how='left', 
+        suffixes=('_x', '_y')
     )
-
-    merged = pd.merge(txn_aggregated, real_starts[['prism_consumer_id','start_balance']], 
-                  on='prism_consumer_id', how='left')
     
-    # Calculate the monthly balance for each consumer
+    # Group by consumer and determine the starting balance using the helper function.
+    real_starts = merged.groupby("prism_consumer_id", group_keys=False)\
+                        .apply(find_real_start_balance)\
+                        .reset_index()
+    
+    # Merge the starting balance back into the aggregated transaction data.
+    merged = pd.merge(txn_aggregated, real_starts[['prism_consumer_id','start_balance']], 
+                      on='prism_consumer_id', how='left')
+    
+    # Calculate monthly balance as cumulative inflow plus the real starting balance.
     merged['monthly_balance'] = merged['cumulative_inflow'] + merged['start_balance']
     monthly_balance_df = merged[['prism_consumer_id', 'year_month', 'monthly_balance']]
-
-    # Calculate standard deviation of monthly balance for each consumer
-    balance_std_df = monthly_balance_df.groupby('prism_consumer_id').agg(balance_std = ('monthly_balance', 'std')).reset_index()
-
-    return balance_std_df
+    
+    # --- Extract Additional Features from Monthly Balance ---
+    def extract_balance_features(df):
+        """
+        Compute various summary statistics and trend features from monthly balance data.
+        """
+        # Aggregate basic statistics per consumer.
+        features = df.groupby('prism_consumer_id').agg(
+            balance_std=('monthly_balance', 'std'),
+            balance_mean=('monthly_balance', 'mean'),
+            balance_median=('monthly_balance', 'median'),
+            balance_max=('monthly_balance', 'max'),
+            balance_min=('monthly_balance', 'min'),
+            balance_count=('monthly_balance', 'count')
+        ).reset_index()
+        # Calculate balance range and coefficient of variation.
+        features['balance_range'] = features['balance_max'] - features['balance_min']
+        features['balance_cv'] = features['balance_std'] / features['balance_mean']
         
+        # Compute the trend (slope) of monthly balance over time.
+        def compute_slope(group):
+            # Sort by time (year_month). For simplicity, use the order index as a proxy for time.
+            group_sorted = group.sort_values('year_month')
+            x = np.arange(len(group_sorted))
+            y = group_sorted['monthly_balance'].values
+            if len(x) > 1:
+                slope, _ = np.polyfit(x, y, 1)
+            else:
+                slope = 0.0
+            return slope
+        
+        trend = df.groupby('prism_consumer_id').apply(compute_slope).reset_index().rename(columns={0: 'balance_trend'})
+        features = features.merge(trend, on='prism_consumer_id', how='left')
+        
+        return features
+
+    # Get all additional balance features.
+    balance_features_df = extract_balance_features(monthly_balance_df)
+    
+    return balance_features_df
