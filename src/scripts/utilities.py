@@ -669,12 +669,75 @@ def predict_and_analyze_model(model, scaler, train_df, test_df, feature_columns)
     print("Train Balanced Accuracy:", train_balanced_acc)
 
 def filter_unknown(consumer_df, account_df, transaction_df):
-    transaction_unknown = (set(consumer_df['prism_consumer_id']) - set(transaction_df['prism_consumer_id']))
-    account_unknown = (set(consumer_df['prism_consumer_id']) - set(account_df['prism_consumer_id']))
+    """
+    Filter out consumers who do not have either account or transaction information.
+
+    This function identifies consumers present in the consumer DataFrame who are missing in 
+    the transaction or account DataFrames. It then filters these consumers out from all three 
+    DataFrames so that only consumers with both account and transaction data remain.
+
+    Parameters:
+        consumer_df (pd.DataFrame): DataFrame containing consumer-level data.
+        account_df (pd.DataFrame): DataFrame containing account-level data.
+        transaction_df (pd.DataFrame): DataFrame containing transaction-level data.
+
+    Returns:
+        tuple: A tuple of three DataFrames:
+            - filtered_consumer_df: Consumer data with only consumers having both account and transaction info.
+            - filtered_account_df: Account data filtered by consumers with both account and transaction info.
+            - filtered_transaction_df: Transaction data filtered by consumers with both account and transaction info.
+    """
+    # Identify consumer IDs missing in the transaction DataFrame
+    transaction_unknown = set(consumer_df['prism_consumer_id']) - set(transaction_df['prism_consumer_id'])
+    
+    # Identify consumer IDs missing in the account DataFrame
+    account_unknown = set(consumer_df['prism_consumer_id']) - set(account_df['prism_consumer_id'])
+    
+    # Combine the two sets to get all consumer IDs with missing account or transaction info
     total_unknown = account_unknown.union(transaction_unknown)
     
+    # Filter the consumer DataFrame to retain only those consumers who have both account and transaction data
     filtered_consumer_df = consumer_df[~consumer_df['prism_consumer_id'].isin(total_unknown)]
+    
+    # Filter the account DataFrame to remove data for consumers with missing info
     filtered_account_df = account_df[~account_df['prism_consumer_id'].isin(total_unknown)]
+    
+    # Filter the transaction DataFrame to remove data for consumers with missing info
     filtered_transaction_df = transaction_df[~transaction_df['prism_consumer_id'].isin(total_unknown)]
 
     return filtered_consumer_df, filtered_account_df, filtered_transaction_df
+
+def apply_smote_to_train_df(train_df, label_col, random_state=42):
+    """
+    Apply SMOTE to balance the training dataset contained in a single DataFrame.
+    
+    This function extracts the label column from the training DataFrame, applies SMOTE to 
+    balance the classes, and then recombines the resampled features and labels back into a 
+    new DataFrame.
+    
+    Args:
+        train_df (pd.DataFrame): Training DataFrame containing both features and the label.
+        label_col (str): Column name representing the target label.
+        random_state (int): Random state for reproducibility.
+        
+    Returns:
+        pd.DataFrame: Resampled training DataFrame with balanced classes.
+    """
+    from imblearn.over_sampling import SMOTE
+
+    # Separate features (X) and label (y)
+    X = train_df.drop(columns=[label_col])
+    y = train_df[label_col]
+    
+    # Apply SMOTE to the feature matrix and label vector
+    smote = SMOTE(random_state=random_state)
+    X_resampled, y_resampled = smote.fit_resample(X, y)
+    
+    # Recombine the resampled features and labels into a DataFrame
+    train_resampled_df = X_resampled.copy()
+    train_resampled_df[label_col] = y_resampled
+    
+    print("\nTraining set class distribution after SMOTE:")
+    print(train_resampled_df[label_col].value_counts(normalize=True))
+    
+    return train_resampled_df
