@@ -585,88 +585,231 @@ def train_model(train_df, feature_columns, model_name="logistic", random_state=1
 
     return model, scaler
 
-def predict_and_analyze_model(model, scaler, train_df, test_df, feature_columns):
+def predict_and_analyze_model(model, scaler, train_df, test_df, feature_columns,
+                              show_metrics=True,
+                              show_classification_report=True,
+                              show_confusion_matrix=True,
+                              show_roc_curve=True):
     """
-    Predicts and evaluates the model using accuracy, ROC AUC score, and a detailed confusion matrix.
+    Predicts and evaluates a classification model on both training and test data.
+    Returns a dictionary containing computed metrics and figure objects.
     
     Parameters:
     -----------
-    model : (e.g., LogisticRegression, RandomForest).
-    scaler : The fitted scaler used during training.
-    train_df : Training dataframe containing features and the target column "DQ_TARGET".
-    test_df : Testing dataframe containing features and the target column "DQ_TARGET".
-    feature_columns : List of column names to use as features.
+    model : sklearn-like model with .predict() and .predict_proba() methods.
+    scaler : Fitted scaler to transform features.
+    train_df : Training dataframe containing features and target column "DQ_TARGET".
+    test_df : Testing dataframe containing features and target column "DQ_TARGET".
+    feature_columns : List of column names used as features.
+    
+    Optional Display Flags:
+    -------------------------
+    show_metrics : If True, displays a metrics table graph for overall accuracy, balanced accuracy, and ROC AUC for both train and test.
+    show_classification_report : If True, prints the classification report for both train and test side by side.
+    show_confusion_matrix : If True, displays the confusion matrix plots for train and test side by side.
+    show_roc_curve : If True, displays the ROC curve plot for the test set.
+        
+    Returns:
+    --------
+    results : dict
+        A dictionary with the following keys:
+            - 'test': Dictionary containing test metrics and ROC data.
+            - 'train': Dictionary containing train metrics.
+            - 'figures': Dictionary with figure objects (if any plots were generated).
     """
-
-    # ===== Training Performance =====
-    X_train = train_df[feature_columns]
-    y_train = train_df['DQ_TARGET']
-    X_train_scaled = scaler.transform(X_train)
-
-    # Make predictions on training data
-    y_pred_train = model.predict(X_train_scaled)
-    train_accuracy = accuracy_score(y_train, y_pred_train)
-    train_balanced_acc = balanced_accuracy_score(y_train, y_pred_train)
-
-    # Some models might not have predict_proba
-    y_pred_proba_train = model.predict_proba(X_train_scaled)[:, 1] if hasattr(model, "predict_proba") else None
-    train_roc_auc = roc_auc_score(y_train, y_pred_proba_train) if y_pred_proba_train is not None else None
-
-    # ===== Testing Performance =====
+    results = {}
+    figures = {}
+    
+    # --------------------------
+    # Testing Performance
+    # --------------------------
     X_test = test_df[feature_columns]
     y_test = test_df['DQ_TARGET']
     X_test_scaled = scaler.transform(X_test)
-
+    
     y_pred_test = model.predict(X_test_scaled)
-    accuracy = accuracy_score(y_test, y_pred_test)
-    balanced_acc = balanced_accuracy_score(y_test, y_pred_test)
+    test_accuracy = accuracy_score(y_test, y_pred_test)
+    test_balanced_acc = balanced_accuracy_score(y_test, y_pred_test)
+    y_pred_proba_test = model.predict_proba(X_test_scaled)[:, 1]
+    test_roc_auc = roc_auc_score(y_test, y_pred_proba_test)
     
-    y_pred_proba_test = model.predict_proba(X_test_scaled)[:, 1] if hasattr(model, "predict_proba") else None
-    roc_auc = roc_auc_score(y_test, y_pred_proba_test) if y_pred_proba_test is not None else None
+    # ROC curve data
+    fpr_test, tpr_test, thresholds_test = roc_curve(y_test, y_pred_proba_test)
     
-    conf_matrix = confusion_matrix(y_test, y_pred_test)
-    conf_matrix_df = pd.DataFrame(
-        conf_matrix,
+    # Confusion matrix
+    conf_matrix_test = confusion_matrix(y_test, y_pred_test)
+    conf_matrix_test_df = pd.DataFrame(
+        conf_matrix_test,
         index=['Actual Negative', 'Actual Positive'],
         columns=['Predicted Negative', 'Predicted Positive']
     )
+    
+    # Save test metrics
+    results['test'] = {
+        'accuracy': test_accuracy,
+        'balanced_accuracy': test_balanced_acc,
+        'roc_auc': test_roc_auc,
+        'roc_curve': {
+            'fpr': fpr_test,
+            'tpr': tpr_test,
+            'thresholds': thresholds_test
+        },
+        'confusion_matrix': conf_matrix_test,
+        'classification_report': classification_report(y_test, y_pred_test, output_dict=True)
+    }
+    
+    # --------------------------
+    # Training Performance
+    # --------------------------
+    X_train = train_df[feature_columns]
+    y_train = train_df['DQ_TARGET']
+    X_train_scaled = scaler.transform(X_train)
+    
+    y_pred_train = model.predict(X_train_scaled)
+    train_accuracy = accuracy_score(y_train, y_pred_train)
+    train_balanced_acc = balanced_accuracy_score(y_train, y_pred_train)
+    y_pred_proba_train = model.predict_proba(X_train_scaled)[:, 1]
+    train_roc_auc = roc_auc_score(y_train, y_pred_proba_train)
+    
+    # ROC curve data
+    fpr_train, tpr_train, thresholds_train = roc_curve(y_train, y_pred_proba_train)
+    
+    # Confusion matrix
+    conf_matrix_train = confusion_matrix(y_train, y_pred_train)
+    conf_matrix_train_df = pd.DataFrame(
+        conf_matrix_train,
+        index=['Actual Negative', 'Actual Positive'],
+        columns=['Predicted Negative', 'Predicted Positive']
+    )
+    
+    results['train'] = {
+        'accuracy': train_accuracy,
+        'balanced_accuracy': train_balanced_acc,
+        'roc_auc': train_roc_auc,
+        'roc_curve': {
+            'fpr': fpr_train,
+            'tpr': tpr_train,
+            'thresholds': thresholds_train
+        },
+        'confusion_matrix': conf_matrix_train,
+        'classification_report': classification_report(y_train, y_pred_train, output_dict=True)
+    }
 
-    # ===== Visualizations =====
-    # Confusion Matrix
-    plt.figure(figsize=(5, 4))
-    sns.heatmap(conf_matrix_df, annot=True, fmt="d", cmap="Blues", cbar=False)
-    plt.title("Confusion Matrix")
-    plt.ylabel("Actual")
-    plt.xlabel("Predicted")
-    plt.show()
+    # --------------------------
+    # Generate Metrics Table as a Figure
+    # --------------------------
+    metrics_df = pd.DataFrame({
+        'Train': [train_accuracy, train_balanced_acc, train_roc_auc],
+        'Test': [test_accuracy, test_balanced_acc, test_roc_auc]
+    }, index=["Accuracy", "Balanced Accuracy", "ROC AUC"])
 
-    # ROC Curve
-    if y_pred_proba_test is not None:
-        fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba_test)
-        plt.figure(figsize=(5, 4))
-        plt.plot(fpr, tpr, label='Model')
-        plt.plot([0, 1], [0, 1], linestyle='--', label='Random Chance')
-        plt.title("ROC Curve")
-        plt.xlabel("False Positive Rate")
-        plt.ylabel("True Positive Rate")
-        plt.legend()
+    fig_metrics, ax_metrics = plt.subplots(figsize=(6, 2.5))
+    ax_metrics.set_axis_off()
+
+    tbl = ax_metrics.table(cellText=metrics_df.round(3).values,
+                        rowLabels=metrics_df.index,
+                        colLabels=metrics_df.columns,
+                        cellLoc='center',
+                        loc='center')
+
+    # Customize the table appearance
+    tbl.auto_set_font_size(False)
+    tbl.set_fontsize(12)
+    tbl.scale(1.2, 1.2)
+
+    # Style header and row label cells
+    for (row, col), cell in tbl.get_celld().items():
+        cell.set_edgecolor('black')
+        # Header cells: top row and left-most row labels (col < 0)
+        if row == 0 or col < 0:
+            cell.set_facecolor('#40466e')
+            cell.set_text_props(color='white', weight='bold')
+        else:
+            cell.set_facecolor('white')
+
+    ax_metrics.set_title("Overall Metrics (Train vs Test)", fontweight="bold", fontsize=14)
+    fig_metrics.tight_layout()
+    figures['metrics_table'] = fig_metrics
+
+    if show_metrics:
         plt.show()
     else:
-        print("ROC Curve not available for the chosen model.")
-
-    # ===== Print metrics =====
-    print("=== TEST METRICS ===")
-    print("Accuracy:", accuracy)
-    if roc_auc is not None:
-        print("ROC AUC Score:", roc_auc)
-    print("Balanced Accuracy:", balanced_acc)
-    print("Classification Report:\n", classification_report(y_test, y_pred_test))
-
-    print("=== TRAINING METRICS ===")
-    print("Train Accuracy:", train_accuracy)
-    if train_roc_auc is not None:
-        print("Train ROC AUC:", train_roc_auc)
-    print("Train Balanced Accuracy:", train_balanced_acc)
+        plt.close(fig_metrics)
+    
+    # --------------------------
+    # Display Classification Reports Side by Side
+    # --------------------------
+    if show_classification_report:
+        # Convert classification report dictionaries to DataFrames
+        cr_train_df = pd.DataFrame(results['train']['classification_report']).T
+        cr_test_df = pd.DataFrame(results['test']['classification_report']).T
+        
+        combined_cr = pd.concat([cr_train_df, cr_test_df], axis=1, keys=["Train", "Test"])
+        
+        print("\n=== Classification Report (Train vs Test) ===")
+        print(combined_cr.to_string())
+    
+    # --------------------------
+    # Visualizations: Confusion Matrix for both Train and Test side by side
+    # --------------------------
+    # Create matrices for Train
+    total_train = conf_matrix_train.sum()
+    annot_train = np.empty_like(conf_matrix_train, dtype=object)
+    for i in range(conf_matrix_train.shape[0]):
+        for j in range(conf_matrix_train.shape[1]):
+            count = conf_matrix_train[i, j]
+            perc = count / total_train * 100 if total_train > 0 else 0
+            annot_train[i, j] = f"{count}\n({perc:.1f}%)"
+    
+    # Create matrices for Test
+    total_test = conf_matrix_test.sum()
+    annot_test = np.empty_like(conf_matrix_test, dtype=object)
+    for i in range(conf_matrix_test.shape[0]):
+        for j in range(conf_matrix_test.shape[1]):
+            count = conf_matrix_test[i, j]
+            perc = count / total_test * 100 if total_test > 0 else 0
+            annot_test[i, j] = f"{count}\n({perc:.1f}%)"
+    
+    # Generate the confusion matrix figure
+    fig_cm, (ax_cm_train, ax_cm_test) = plt.subplots(1, 2, figsize=(12, 5))
+    
+    sns.heatmap(conf_matrix_train_df, annot=annot_train, fmt="", cmap="Blues", cbar=False, ax=ax_cm_train)
+    ax_cm_train.set_title("Confusion Matrix (Train)")
+    ax_cm_train.set_ylabel("Actual")
+    ax_cm_train.set_xlabel("Predicted")
+    
+    sns.heatmap(conf_matrix_test_df, annot=annot_test, fmt="", cmap="Blues", cbar=False, ax=ax_cm_test)
+    ax_cm_test.set_title("Confusion Matrix (Test)")
+    ax_cm_test.set_ylabel("Actual")
+    ax_cm_test.set_xlabel("Predicted")
+    
+    plt.tight_layout()
+    if show_confusion_matrix:
+        plt.show()
+    else:
+        plt.close(fig_cm)
+    figures['confusion_matrix'] = fig_cm
+    
+    # --------------------------
+    # Visualizations: ROC Curve for Test Set only
+    # --------------------------
+    # Generate the ROC curve figure
+    fig_roc, ax_roc = plt.subplots(figsize=(6, 5))
+    ax_roc.plot(fpr_test, tpr_test, label='Test ROC')
+    ax_roc.plot([0, 1], [0, 1], linestyle='--', label='Random Chance')
+    ax_roc.set_title("ROC Curve (Test)")
+    ax_roc.set_xlabel("False Positive Rate")
+    ax_roc.set_ylabel("True Positive Rate")
+    ax_roc.legend()
+    if show_roc_curve:
+        plt.show()
+    else:
+        plt.close(fig_roc)
+    figures['roc_curve'] = fig_roc
+    
+    results['figures'] = figures
+    
+    return results
 
 def filter_unknown(consumer_df, account_df, transaction_df):
     """
