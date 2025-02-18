@@ -488,99 +488,77 @@ class FeatureSelector:
         plt.tight_layout()
         plt.show()
 
-def train_model(train_df, feature_columns, model_name="logistic", random_state=123):
+def get_model_params(model_name, use_optimized=False, config_path='model_config.json'):
     """
-    Trains a specified model (LogisticRegression, RandomForest ...) on the training dataframe
-    using a predefined set of hyperparameters.
+    Retrieves the model class and parameters from the JSON configuration file.
 
     Parameters:
     -----------
-    train_df : pd.DataFrame
-        Training dataframe containing the features and the target column 'DQ_TARGET'.
-    feature_columns : list
-        The feature columns to be used for training.
-    model_name : str (default='logistic')
-        Identifier for which model to train. Can be extended to other model names.
+    model_name : The key in the JSON file corresponding to the desired model.
+    use_optimized : Whether to use the optimized parameters if they are available.
+    config_path : Path to the JSON configuration file.
 
     Returns:
     --------
-    model : sklearn model
-        The trained model instance.
-    scaler : StandardScaler
-        The fitted scaler used to transform the training (and later test) data.
+    model_class : The model class (e.g., LogisticRegression).
+    params : Dictionary of parameters to instantiate the model.
     """
+    with open(config_path, 'r') as f:
+        config = json.load(f)
 
-    # Predefined model parameters for each model_name
-    # Adjust or extend as needed for your specific use case
-    model_params_dict = {
-        "logistic": {
-            "class": LogisticRegression,
-            "params": {
-                "class_weight": "balanced",
-                "max_iter": 1000
-            }
-        },
-        "random_forest": {
-            "class": RandomForestClassifier,
-            "params": {
-                "class_weight": "balanced",
-                "n_estimators": 100
-            }
-        },
-        "gradient_boosting": {
-            "class": GradientBoostingClassifier,
-            "params": {
-                "n_estimators": 100,
-                "max_depth": 3
-            }
-        },
-        "xgboost": {
-            "class": XGBClassifier,
-            "params": {
-                "eval_metric": "logloss",
-                "scale_pos_weight": 19, # (#negatives / #positives) 95/15
-                "n_estimators": 100,
-                "learning_rate": 0.1,       # Lower learning rates can help reduce overfitting.
-                "max_depth": 3,            # Deeper trees can overfit;
-                "subsample": 0.8,          # Row subsampling: helps reduce variance.
-                "colsample_bytree": 0.8,   # Feature subsampling: also helps reduce variance.
-                "reg_lambda": 1.0         # L2 regularization (default=1)
-            }
-        },
-        "lightgbm": {
-            "class": LGBMClassifier,
-            "params": {
-                "class_weight": "balanced"
-                # For heavily imbalanced data, you can also tune "is_unbalance" or adjust "scale_pos_weight".
-            }
-        }
+    if model_name not in config:
+        raise ValueError(f"Unknown model_name '{model_name}'. Valid options are: {list(config.keys())}")
+
+    model_info = config[model_name]
+    # Use optimized parameters if requested and available; otherwise, fallback to default.
+    params = model_info.get("optimized_params") if use_optimized and model_info.get("optimized_params") else model_info.get("default_params")
+    model_class_str = model_info.get("class")
+
+    # Mapping from string names to actual Python classes.
+    class_mapping = {
+        "LogisticRegression": LogisticRegression,
+        "RandomForestClassifier": RandomForestClassifier,
+        "GradientBoostingClassifier": GradientBoostingClassifier,
+        "XGBClassifier": XGBClassifier,
+        "LGBMClassifier": LGBMClassifier
     }
 
-    # Check if the requested model is in our dictionary
-    if model_name not in model_params_dict:
-        raise ValueError(
-            f"Unknown model_name '{model_name}'. "
-            f"Valid options are: {list(model_params_dict.keys())}"
-        )
+    if model_class_str not in class_mapping:
+        raise ValueError(f"Unknown model class '{model_class_str}' for model '{model_name}'.")
 
-    chosen_model_class = model_params_dict[model_name]["class"]
-    chosen_model_params = model_params_dict[model_name]["params"]
+    model_class = class_mapping[model_class_str]
+    return model_class, params
 
-    # Inject the random_state into the model’s parameters (if it’s relevant)
-    chosen_model_params["random_state"] = random_state
+def train_model(train_df, feature_columns, model_name, use_optimized=False, config_path='model_config.json'):
+    """
+    Trains the specified model using parameters loaded from a JSON configuration file.
 
-    # Initialize model with the predefined parameters
-    model = chosen_model_class(**chosen_model_params)
-
-    # Define features (X) and target (y) for training
+    Parameters:
+    -----------
+    train_df : Training dataframe containing the features and target column 'DQ_TARGET'.
+    feature_columns : List of feature column names used for training.
+    model_name : Key corresponding to the model configuration in the JSON file.
+    use_optimized : Whether to use the optimized parameters from the config file.
+    config_path : Path to the JSON configuration file.
+    
+    Returns:
+    --------
+    model : The trained model instance.
+    scaler : The fitted scaler used to transform the training data.
+    """
+    # Retrieve model class and parameters
+    model_class, model_params = get_model_params(model_name, use_optimized, config_path)
+    
+    # Define features and target
     X_train = train_df[feature_columns]
     y_train = train_df['DQ_TARGET']
 
-    # Scale data
+    # Scale the data
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
 
-    # Train the model
+    # Initialize and train the model
+    model = model_class(**model_params)
     model.fit(X_train_scaled, y_train)
 
     return model, scaler

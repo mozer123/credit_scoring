@@ -1,0 +1,127 @@
+{
+  "logistic": {
+    "class": "LogisticRegression",
+    "default_params": {
+      "random_state": 123,
+      "penalty": "l2",
+      "C": 1.0,
+      "solver": "lbfgs",
+      "max_iter": 200,
+      "class_weight": "balanced",
+      "fit_intercept": true
+    },
+    "tuning_options": {
+      "penalty": ["l1", "l2", "elasticnet", "none"],
+      "C": [0.001, 0.01, 0.1, 1, 10, 100],
+      "class_weight": ["balanced"],
+      "solver": ["newton-cg", "lbfgs", "liblinear", "sag", "saga"],
+      "max_iter": [200, 500, 1000],
+      "l1_ratio": [0.0, 0.5, 1.0],
+      "fit_intercept": [true, false]
+    },
+    "optimized_params": {
+      "random_state": 123
+    }
+  },
+  "random_forest": {
+    "class": "RandomForestClassifier",
+    "default_params": {
+      "random_state": 123,
+      "n_estimators": 100,
+      "criterion": "gini",
+      "max_depth": null,
+      "min_samples_split": 2,
+      "min_samples_leaf": 1,
+      "max_features": "sqrt",
+      "class_weight": "balanced"
+    },
+    "tuning_options": {
+      "n_estimators": [100, 200, 300, 500],
+      "criterion": ["gini", "entropy"],
+      "max_depth": [null, 10, 20, 30],
+      "min_samples_split": [2, 5, 10],
+      "min_samples_leaf": [1, 2, 4],
+      "max_features": ["sqrt", "log2", null],
+      "class_weight": [null, "balanced", "balanced_subsample"]
+    },
+    "optimized_params": {
+      "random_state": 123
+    }
+  },
+  "gradient_boosting": {
+    "class": "GradientBoostingClassifier",
+    "default_params": {
+      "random_state": 123,
+      "loss": "log_loss",
+      "n_estimators": 100,
+      "learning_rate": 0.1,
+      "subsample": 1.0,
+      "max_depth": 3,
+      "max_features": null
+    },
+    "tuning_options": {
+      "loss": ["log_loss", "exponential"],
+      "n_estimators": [100, 200, 300, 500],
+      "learning_rate": [0.001, 0.01, 0.1, 0.2, 0.3],
+      "subsample": [0.5, 0.7, 1.0],
+      "max_depth": [3, 4, 5, 6],
+      "max_features": ["sqrt", "log2", null]
+    },
+    "optimized_params": {
+      "random_state": 123
+    }
+  },
+  "xgboost": {
+    "class": "XGBClassifier",
+    "default_params": {
+      "random_state": 123,
+      "n_estimators": 100,
+      "learning_rate": 0.1,
+      "max_depth": 3,
+      "min_split_loss": 0,
+      "subsample": 1.0,
+      "colsample_bytree": 1.0,
+      "min_child_weight": 1,
+      "scale_pos_weight": 10,
+      "eval_metric": "logloss"
+    },
+    "tuning_options": {
+      "n_estimators": [100, 200, 300, 500],
+      "learning_rate": [0.01, 0.05, 0.1, 0.2],
+      "min_split_loss": [0, 1, 5, 10],
+      "max_depth": [3, 4, 5, 6],
+      "subsample": [0.5, 0.7, 1.0],
+      "colsample_bytree": [0.5, 0.7, 1.0],
+      "min_child_weight": [1, 3, 5],
+      "scale_pos_weight": [1, 5, 10, 20],
+      "eval_metric": ["logloss", "auc"]
+    },
+    "optimized_params": {
+      "random_state": 123
+    }
+  },
+  "lightgbm": {
+    "class": "LGBMClassifier",
+    "default_params": {
+      "random_state": 123,
+      "n_estimators": 100,
+      "learning_rate": 0.1,
+      "num_leaves": 31,
+      "tree_learner": "serial",
+      "scale_pos_weight": 10
+    },
+    "tuning_options": {
+      "n_estimators": [100, 200, 300, 500],
+      "num_iterations": [100, 200, 300, 500],
+      "learning_rate": [0.01, 0.05, 0.1, 0.2],
+      "num_leaves": [31, 50, 70, 100],
+      "tree_learner": ["serial", "feature", "data", "voting"],
+      "scale_pos_weight": [1, 5, 10, 20],
+      "subsample": [0.6, 0.8, 1.0],
+      "colsample_bytree": [0.6, 0.8, 1.0]
+    },
+    "optimized_params": {
+      "random_state": 123
+    }
+  }
+}
