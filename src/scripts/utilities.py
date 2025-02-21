@@ -38,7 +38,7 @@ def get_data():
     try:
         # Determine the data directory path dynamically
         current_dir = os.path.dirname(os.path.abspath(__file__))  # Current script directory
-        data_dir = os.path.join(os.path.dirname(current_dir), 'data', 'raw_data')
+        data_dir = os.path.join(os.path.dirname(os.path.dirname(current_dir)), 'data')
 
         # Define file paths
         consumer_file = os.path.join(data_dir, 'q2-ucsd-consDF.pqt')
@@ -154,7 +154,7 @@ class MetadataManager:
     """
     def __init__(self):
         self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.temp_dir = os.path.join(self.base_dir, 'data', 'temporary_data')
+        self.temp_dir = os.path.join(self.base_dir, 'temporary_data')
         os.makedirs(self.temp_dir, exist_ok=True)
         
     def get_metadata_path(self):
@@ -316,7 +316,7 @@ class FeatureSelector:
             self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         else:
             self.base_dir = base_dir
-        self.results_dir = os.path.join(self.base_dir, 'data', 'temporary_data', 'feature_selection')
+        self.results_dir = os.path.join(self.base_dir, 'temporary_data', 'feature_selection')
         os.makedirs(self.results_dir, exist_ok=True)
         
         # Internal dictionary to store results for each method
