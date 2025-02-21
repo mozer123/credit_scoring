@@ -5,13 +5,13 @@
 main_test.ipynb
 scripts_test/
 
-# Ignore everything in src/data/raw_data and src/data/temporary_data
-src/data/raw_data/*
-src/data/temporary_data/*
+# Ignore everything in data and src/temporary_data
+data/*
+src/temporary_data/*
 
 # Allow .gitkeep in these directories
-!src/data/raw_data/.gitkeep
-!src/data/temporary_data/.gitkeep
+!data/.gitkeep
+!src/temporary_data/.gitkeep
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
