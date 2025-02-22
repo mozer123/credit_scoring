@@ -862,3 +862,75 @@ def apply_smote_to_train_df(train_df, label_col, random_state=42):
     print(train_resampled_df[label_col].value_counts(normalize=True))
     
     return train_resampled_df
+
+def evaluate_feature_model_combinations(train_df, test_df, all_feature_columns,
+                                          feature_selection_methods=['all_features', 'mutual_info', 'random_forest', 'xgboost'],
+                                          model_types=['xgboost', 'gradient_boosting', 'random_forest', 'logistic']):
+    """
+    Evaluates model performance for various combinations of feature selection methods
+    and model types. For each combination, a model is trained, predictions are made,
+    and test performance metrics (accuracy, balanced accuracy, ROC AUC) are computed.
+    
+    Parameters:
+    -----------
+    train_df : pd.DataFrame
+        Training data containing feature columns and target column "DQ_TARGET".
+    test_df : pd.DataFrame
+        Testing data containing feature columns and target column "DQ_TARGET".
+    all_feature_columns : list
+        List of all available feature column names.
+    feature_selection_methods : list, optional
+        List of feature selection approaches to try. Use 'all_features' to skip feature selection.
+        Default is ['all_features', 'mutual_info', 'random_forest', 'xgboost'].
+    model_types : list, optional
+        List of model types to train. Acceptable values are 
+        ['lightgbm', 'xgboost', 'gradient_boosting', 'random_forest', 'logistic'].
+    
+    Returns:
+    --------
+    pd.DataFrame
+        A DataFrame summarizing test accuracy, balanced accuracy, and ROC AUC for every combination.
+    """
+    import pandas as pd
+    
+    results_list = []
+    
+    # Loop over each feature selection method.
+    for fs_method in feature_selection_methods:
+        if fs_method == 'all_features':
+            selected_features = all_feature_columns
+        else:
+            # Initialize the FeatureSelector with the full set of features.
+            fs = FeatureSelector(train_df, all_feature_columns)
+            # Run feature selection with the current method, selecting top 50 features.
+            fs.run_feature_selection(methods=[fs_method], n_features=50)
+            selected_features = fs.get_selected_features(fs_method)
+        
+        # Loop over each model type.
+        for model_type in model_types:
+            print(f"Evaluating: Feature Selection = {fs_method}, Model = {model_type}")
+            
+            # Train the model using the selected features.
+            model, scaler = train_model(train_df, selected_features, model_type)
+            
+            # Evaluate the model (plots and additional displays are disabled).
+            results = predict_and_analyze_model(
+                model, scaler, train_df, test_df, selected_features,
+                show_metrics=False,
+                show_classification_report=False,
+                show_confusion_matrix=False,
+                show_roc_curve=False
+            )
+            
+            test_metrics = results['test']
+            results_list.append({
+                "Feature Selection": fs_method,
+                "Model": model_type,
+                "Test Accuracy": round(test_metrics['accuracy'], 2),
+                "Test Balanced Accuracy": round(test_metrics['balanced_accuracy'], 2),
+                "Test ROC AUC": round(test_metrics['roc_auc'], 2)
+            })
+    
+    # Create and return a summary DataFrame.
+    summary_df = pd.DataFrame(results_list)
+    return summary_df
