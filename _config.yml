@@ -1,0 +1,3 @@
+remote_theme: pages-themes/leap-day
+plugins:
+- jekyll-remote-theme
