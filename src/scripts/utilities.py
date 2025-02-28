@@ -561,7 +561,7 @@ def train_model(train_df, feature_columns, model_name, use_optimized=False, conf
     model = model_class(**model_params)
     model.fit(X_train_scaled, y_train)
 
-    return model, scaler
+    return X_train, X_train_scaled, model, scaler
 
 def predict_and_analyze_model(model, scaler, train_df, test_df, feature_columns,
                               show_metrics=True,
@@ -787,7 +787,7 @@ def predict_and_analyze_model(model, scaler, train_df, test_df, feature_columns,
     
     results['figures'] = figures
     
-    return results
+    return X_test, X_test_scaled, y_test, y_pred_test, results
 
 def filter_unknown(consumer_df, account_df, transaction_df):
     """
@@ -911,10 +911,10 @@ def evaluate_feature_model_combinations(train_df, test_df, all_feature_columns,
             print(f"Evaluating: Feature Selection = {fs_method}, Model = {model_type}")
             
             # Train the model using the selected features.
-            model, scaler = train_model(train_df, selected_features, model_type)
+            _, _, model, scaler = train_model(train_df, selected_features, model_type)
             
             # Evaluate the model (plots and additional displays are disabled).
-            results = predict_and_analyze_model(
+            _, _, _, _, results = predict_and_analyze_model(
                 model, scaler, train_df, test_df, selected_features,
                 show_metrics=False,
                 show_classification_report=False,
@@ -934,3 +934,18 @@ def evaluate_feature_model_combinations(train_df, test_df, all_feature_columns,
     # Create and return a summary DataFrame.
     summary_df = pd.DataFrame(results_list)
     return summary_df
+
+def shap_plots(model, X, X_scaled):
+    import pandas as pd
+    import shap
+
+    scaled_feats = pd.DataFrame(X_scaled)
+    scaled_feats.columns = X.columns
+
+    explainer = shap.Explainer(model)
+
+    shap_values = explainer(scaled_feats)
+
+    shap.summary_plot(shap_values, scaled_feats)
+
+    return scaled_feats, explainer, shap_values
