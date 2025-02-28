@@ -1,0 +1,42 @@
+{
+  "average_transaction_amount": {
+    "hash": "f839f0de4241ca2b768cf01cbd6ce03b",
+    "last_modified": "2025-02-20T14:43:20.351544",
+    "name": "average_transaction_amount"
+  },
+  "net_monthly_cash_flow": {
+    "hash": "3be49f4bd20c6a0dc5d9043dc3daebb7",
+    "last_modified": "2025-02-20T14:43:27.678676",
+    "name": "net_monthly_cash_flow"
+  },
+  "average_account_balance": {
+    "hash": "fba09851260954d42c77eb898cd452a8",
+    "last_modified": "2025-02-20T14:43:27.745493",
+    "name": "average_account_balance"
+  },
+  "time_based_average_transaction_amounts": {
+    "hash": "62ab743f169a81902f453305e399422b",
+    "last_modified": "2025-02-20T14:43:33.601162",
+    "name": "time_based_average_transaction_amounts"
+  },
+  "descriptive_stats_by_category": {
+    "hash": "1153e0a0495df6f96c6938140570d96c",
+    "last_modified": "2025-02-20T14:43:37.848644",
+    "name": "descriptive_stats_by_category"
+  },
+  "outflow_stats": {
+    "hash": "382eb78105e339f0a23f1d2f2b380941",
+    "last_modified": "2025-02-20T14:43:44.444459",
+    "name": "outflow_stats"
+  },
+  "outflow_over_time_fix": {
+    "hash": "c65c25ddcf83f85dfabe320afc5bba8f",
+    "last_modified": "2025-02-20T14:44:12.977562",
+    "name": "outflow_over_time_fix"
+  },
+  "balance_over_time": {
+    "hash": "cbc60d6128e4f0b33b931cc5227c0afd",
+    "last_modified": "2025-02-20T14:48:42.024652",
+    "name": "balance_over_time"
+  }
+}
