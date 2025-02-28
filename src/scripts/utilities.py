@@ -20,6 +20,7 @@ from sklearn.feature_selection import mutual_info_classif
 
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
+import shap
 
 
 def get_data():
@@ -936,9 +937,6 @@ def evaluate_feature_model_combinations(train_df, test_df, all_feature_columns,
     return summary_df
 
 def shap_plots(model, X, X_scaled):
-    import pandas as pd
-    import shap
-
     scaled_feats = pd.DataFrame(X_scaled)
     scaled_feats.columns = X.columns
 
