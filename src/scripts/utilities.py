@@ -22,6 +22,12 @@ from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 import shap
 
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.optimizers import Adam
+
 
 def get_data():
     """
@@ -521,7 +527,8 @@ def get_model_params(model_name, use_optimized=False, config_path='model_config.
         "RandomForestClassifier": RandomForestClassifier,
         "GradientBoostingClassifier": GradientBoostingClassifier,
         "XGBClassifier": XGBClassifier,
-        "LGBMClassifier": LGBMClassifier
+        "LGBMClassifier": LGBMClassifier,
+        "SequentialNN": SequentialNN
     }
 
     if model_class_str not in class_mapping:
@@ -947,3 +954,261 @@ def shap_plots(model, X, X_scaled):
     shap.summary_plot(shap_values, scaled_feats)
 
     return scaled_feats, explainer, shap_values
+
+class SequentialNN:
+    def __init__(self, hidden_layers=[128, 64, 32], dropout_rate=0.3, 
+                 learning_rate=0.001, batch_size=32, epochs=100, 
+                 early_stopping_patience=10, random_state=123):
+        self.hidden_layers = hidden_layers
+        self.dropout_rate = dropout_rate
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        self.epochs = epochs
+        self.early_stopping_patience = early_stopping_patience
+        self.random_state = random_state
+        
+        # Set random seeds for reproducibility
+        tf.random.set_seed(random_state)
+        self.model = None
+        
+    def build_model(self, input_dim):
+        model = Sequential()
+        
+        # First hidden layer
+        model.add(Dense(self.hidden_layers[0], activation='relu', 
+                       input_dim=input_dim))
+        model.add(Dropout(self.dropout_rate))
+        
+        # Additional hidden layers
+        for units in self.hidden_layers[1:]:
+            model.add(Dense(units, activation='relu'))
+            model.add(Dropout(self.dropout_rate))
+        
+        # Output layer
+        model.add(Dense(1, activation='sigmoid'))
+        
+        # Compile model
+        model.compile(optimizer=Adam(learning_rate=self.learning_rate),
+                     loss='binary_crossentropy',
+                     metrics=['accuracy', 'AUC'])
+        
+        self.model = model
+        return self
+    
+    def fit(self, X, y):
+        if self.model is None:
+            self.build_model(X.shape[1])
+            
+        # Print model summary
+        print("\nModel Architecture:")
+        self.model.summary()
+        
+        # Print class distribution
+        print("\nClass Distribution:")
+        print(pd.Series(y).value_counts(normalize=True))
+        
+        # Calculate class weights
+        n_samples = len(y)
+        n_positive = sum(y)
+        n_negative = n_samples - n_positive
+        weight_for_0 = (1 / n_negative) * (n_samples / 2)
+        weight_for_1 = (1 / n_positive) * (n_samples / 2)
+        class_weight = {0: weight_for_0, 1: weight_for_1}
+        
+        print("\nClass Weights:")
+        print(class_weight)
+            
+        early_stopping = EarlyStopping(
+            monitor='val_loss',
+            patience=self.early_stopping_patience,
+            restore_best_weights=True,
+            verbose=1
+        )
+        
+        # Train with verbose=1 to see progress
+        history = self.model.fit(
+            X, y,
+            epochs=self.epochs,
+            batch_size=self.batch_size,
+            validation_split=0.2,
+            callbacks=[early_stopping],
+            class_weight=class_weight,
+            verbose=1
+        )
+        
+        # Plot training history
+        plt.figure(figsize=(12, 4))
+        
+        plt.subplot(1, 2, 1)
+        plt.plot(history.history['loss'], label='Training Loss')
+        plt.plot(history.history['val_loss'], label='Validation Loss')
+        plt.title('Model Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.legend()
+        
+        plt.subplot(1, 2, 2)
+        plt.plot(history.history['accuracy'], label='Training Accuracy')
+        plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+        plt.title('Model Accuracy')
+        plt.xlabel('Epoch')
+        plt.ylabel('Accuracy')
+        plt.legend()
+        
+        plt.tight_layout()
+        plt.show()
+        
+        return self
+    
+    def predict(self, X):
+        predictions = self.model.predict(X, verbose=0)
+        # Print prediction distribution
+        print("\nPrediction Distribution:")
+        print(pd.Series((predictions > 0.5).flatten().astype(int)).value_counts(normalize=True))
+        return (predictions > 0.5).astype(int).flatten()
+    
+    def predict_proba(self, X):
+        probs = self.model.predict(X, verbose=0).flatten()
+        return np.vstack((1 - probs, probs)).T
+
+def identify_thin_files(transaction_df, account_df, consumer_df, 
+                       min_transactions=10,
+                       min_transaction_months=3,
+                       min_balance_records=5):
+    """
+    Identifies consumers with insufficient data for reliable scoring.
+    
+    Parameters:
+    -----------
+    transaction_df : DataFrame
+        Transaction data
+    account_df : DataFrame
+        Account balance data
+    consumer_df : DataFrame
+        Consumer information
+    min_transactions : int
+        Minimum number of transactions required
+    min_transaction_months : int
+        Minimum number of months with transaction activity
+    min_balance_records : int
+        Minimum number of balance records
+    
+    Returns:
+    --------
+    DataFrame
+        Original consumer_df with additional columns indicating data sufficiency
+    """
+    # Calculate transaction metrics
+    transaction_counts = transaction_df.groupby('prism_consumer_id').agg({
+        'posted_date': ['count', 'nunique']
+    }).reset_index()
+    transaction_counts.columns = ['prism_consumer_id', 'total_transactions', 'unique_transaction_dates']
+    
+    # Calculate number of months with transactions
+    transaction_df['transaction_month'] = transaction_df['posted_date'].dt.to_period('M')
+    months_with_transactions = transaction_df.groupby('prism_consumer_id')['transaction_month'].nunique().reset_index()
+    months_with_transactions.columns = ['prism_consumer_id', 'months_with_transactions']
+    
+    # Calculate balance record metrics
+    balance_counts = account_df.groupby('prism_consumer_id').agg({
+        'balance_date': 'count'
+    }).reset_index()
+    balance_counts.columns = ['prism_consumer_id', 'balance_records']
+    
+    # Merge all metrics with consumer data
+    result_df = consumer_df.merge(transaction_counts, on='prism_consumer_id', how='left')
+    result_df = result_df.merge(months_with_transactions, on='prism_consumer_id', how='left')
+    result_df = result_df.merge(balance_counts, on='prism_consumer_id', how='left')
+    
+    # Fill NaN values with 0 for consumers with no data
+    result_df = result_df.fillna({
+        'total_transactions': 0,
+        'unique_transaction_dates': 0,
+        'months_with_transactions': 0,
+        'balance_records': 0
+    })
+    
+    # Create flags for different types of thin files
+    result_df['insufficient_transactions'] = result_df['total_transactions'] < min_transactions
+    result_df['insufficient_transaction_history'] = result_df['months_with_transactions'] < min_transaction_months
+    result_df['insufficient_balance_records'] = result_df['balance_records'] < min_balance_records
+    
+    # Create overall thin file flag
+    result_df['is_thin_file'] = (
+        result_df['insufficient_transactions'] |
+        result_df['insufficient_transaction_history'] |
+        result_df['insufficient_balance_records']
+    )
+    
+    return result_df
+
+def analyze_thin_files(df):
+    """
+    Analyzes the characteristics and default rates of thin vs thick files.
+    
+    Parameters:
+    -----------
+    df : DataFrame
+        Output from identify_thin_files function
+    """
+    print("Data Sufficiency Analysis")
+    print("-" * 50)
+    
+    # Overall statistics
+    print("\nOverall Thin File Rate:")
+    print(df['is_thin_file'].value_counts(normalize=True).round(3))
+    
+    # Breakdown by type
+    print("\nInsufficiency Reasons:")
+    for col in ['insufficient_transactions', 'insufficient_transaction_history', 'insufficient_balance_records']:
+        print(f"\n{col}:")
+        print(df[col].value_counts(normalize=True).round(3))
+    
+    # Default rates comparison
+    print("\nDefault Rates Comparison:")
+    thin_default_rate = df[df['is_thin_file']]['DQ_TARGET'].mean()
+    thick_default_rate = df[~df['is_thin_file']]['DQ_TARGET'].mean()
+    print(f"Thin Files Default Rate: {thin_default_rate:.3f}")
+    print(f"Thick Files Default Rate: {thick_default_rate:.3f}")
+    
+    # Distribution of data metrics
+    print("\nData Metrics Distribution:")
+    metrics = ['total_transactions', 'months_with_transactions', 'balance_records']
+    for metric in metrics:
+        print(f"\n{metric}:")
+        print(df[metric].describe().round(2))
+
+def analyze_exclusion_impact(original_df, filtered_df):
+    """
+    Analyzes the impact of thin file exclusions on the dataset.
+    
+    Parameters:
+    -----------
+    original_df : DataFrame
+        Original consumer dataset
+    filtered_df : DataFrame
+        Dataset after excluding thin files
+    """
+    print("Exclusion Impact Analysis")
+    print("-" * 50)
+    
+    # Sample size impact
+    print("\nSample Size Impact:")
+    print(f"Original samples: {len(original_df)}")
+    print(f"Filtered samples: {len(filtered_df)}")
+    print(f"Reduction: {(1 - len(filtered_df)/len(original_df))*100:.1f}%")
+    
+    # Default rate impact
+    print("\nDefault Rate Impact:")
+    original_default = original_df['DQ_TARGET'].mean()
+    filtered_default = filtered_df['DQ_TARGET'].mean()
+    print(f"Original default rate: {original_default:.3f}")
+    print(f"Filtered default rate: {filtered_default:.3f}")
+    
+    # Population stability analysis
+    if 'credit_score' in original_df.columns:
+        print("\nCredit Score Distribution:")
+        print("Original:")
+        print(original_df['credit_score'].describe().round(2))
+        print("\nFiltered:")
+        print(filtered_df['credit_score'].describe().round(2))
