@@ -1213,7 +1213,34 @@ def analyze_exclusion_impact(original_df, filtered_df):
         print("\nFiltered:")
         print(filtered_df['credit_score'].describe().round(2))
 
-def cash_vs_credit_score(model, scaler, feature_columns, df, consumer_df):
+def generate_cash_scores(model, scaler, feature_columns, features_df):
+    """
+    Generate cash score values based on the model's predicted probabilities.
+    
+    Parameters:
+        model: sklearn model
+        scaler: A fitted scaler object to transform feature data.
+        feature_columns: List of feature column names used in prediction.
+        features_df: DataFrame containing feature data and 'prism_consumer_id'.
+    
+    Returns:
+        DataFrame with 'prism_consumer_id' and 'cash_score'.
+    """
+    X = features_df[feature_columns]
+    X_scaled = scaler.transform(X)
+    
+    probs = model.predict_proba(X_scaled)[:, 1]
+    
+    # Scale probabilities to a cash score
+    cash_scores = np.round((1 - probs) * (850 - 300) + 300).astype(int)
+    
+    # Create a DataFrame with 'prism_consumer_id' and 'cash_score'
+    predictions = features_df[['prism_consumer_id']].copy()
+    predictions['cash_score'] = cash_scores
+    
+    return predictions
+
+def cash_vs_credit_score(model, scaler, feature_columns, features_df, consumer_df):
     """
     Compare existing credit scores with predicted cash scores and visualize the relationship.
     
@@ -1221,27 +1248,17 @@ def cash_vs_credit_score(model, scaler, feature_columns, df, consumer_df):
         model: sklearn model
         scaler: A fitted scaler object to transform feature data.
         feature_columns: List of feature column names used in prediction.
-        df: DataFrame with at least 'prism_consumer_id', 'DQ_TARGET', and feature_columns.
+        features_df: DataFrame with at least 'prism_consumer_id', 'DQ_TARGET', and feature_columns.
         consumer_df: DataFrame with at least 'prism_consumer_id', 'credit_score',
                      and optionally 'DQ_TARGET' (with values 0 or 1).
     
     Returns:
         merged_df: DataFrame containing prism_consumer_id, credit_score, cash_score, and DQ_TARGET.
     """
-    X = df[feature_columns]
-    X_scaled = scaler.transform(X)
-    
-    probs = model.predict_proba(X_scaled)[:, 1]
-    
-    # scale probabilities to a cash score
-    cash_scores = np.round((1 - probs) * (850 - 300) + 300).astype(int)
-
-    # merge cash scores with consumer_df using prism_consumer_id
-    predictions = df[['prism_consumer_id']].copy()
-    predictions['cash_score'] = cash_scores
+    predictions = generate_cash_scores(model, scaler, feature_columns, features_df)
     merged_df = consumer_df.merge(predictions, on='prism_consumer_id', how='inner')
     
-    # scatter plot comparing credit_score vs. cash_score
+    # Scatter plot comparing credit_score vs. cash_score
     plt.figure(figsize=(9, 8))
     if 'DQ_TARGET' in merged_df.columns:
         groups = merged_df.groupby('DQ_TARGET')
@@ -1260,19 +1277,16 @@ def cash_vs_credit_score(model, scaler, feature_columns, df, consumer_df):
     plt.grid(True)
     plt.show()
     
-    # heatmap to examine performance across score ranges.
+    # Heatmap to examine performance across score ranges
     num_bins = 5 
     merged_df['credit_bin'] = pd.cut(merged_df['credit_score'], bins=num_bins)
     merged_df['cash_bin'] = pd.cut(merged_df['cash_score'], bins=num_bins)
     
     if 'DQ_TARGET' in merged_df.columns:
-        # compute default rate
         pivot_table = merged_df.pivot_table(index='credit_bin', columns='cash_bin', values='DQ_TARGET', aggfunc='mean', observed=False)
-
         title = 'Default Rate by Cash Score and Credit Score'
         fmt = ".2f"
     else:
-        # if no DQ_TARGET available, show consumer counts per bin.
         pivot_table = merged_df.pivot_table(index='credit_bin', columns='cash_bin', values='prism_consumer_id', aggfunc='count', observed=False)
         title = 'Default Rate by Cash Score and Credit Score'
         fmt = "d"
@@ -1280,7 +1294,7 @@ def cash_vs_credit_score(model, scaler, feature_columns, df, consumer_df):
     plt.figure(figsize=(9, 8))
     ax = sns.heatmap(pivot_table, annot=True, cmap="coolwarm", fmt=fmt, cbar=False)
     ax.invert_yaxis()
-
+    
     plt.title(title)
     plt.xlabel('Cash Score Ranges')
     plt.ylabel('Credit Score Ranges')
