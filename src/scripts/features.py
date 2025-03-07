@@ -1,11 +1,11 @@
 # Example of a feature creation function
-def average_transaction_amount(accountransaction_df, transaction_df):
+def average_transaction_amount(consumer_df, accountransaction_df, transaction_df):
     """
     Calculates the average transaction amount per consumer and returns a dataframe
     with the `prism_consumer_id` and the new feature.
 
     Guidelines for creating feature functions:
-    1. Always accept `accountransaction_df` and `transaction_df` in this specific order.
+    1. Always accept `consumer_df`, `accountransaction_df` and `transaction_df` in this specific order.
     2. Do not modify the input dataframes.
     3. Return a dataframe with only `prism_consumer_id` and the calculated features.
     4. Ensure the function is self-contained and easy to test.
@@ -37,7 +37,7 @@ def average_transaction_amount(accountransaction_df, transaction_df):
     # Step 5: Return the final dataframe
     return result
 
-def net_monthly_cash_flow(accountransaction_df, transaction_df):
+def net_monthly_cash_flow(consumer_df, accountransaction_df, transaction_df):
     """
     Calculates the net monthly cash flow per consumer.
     """
@@ -60,7 +60,7 @@ def net_monthly_cash_flow(accountransaction_df, transaction_df):
 
     return net_cash_flow
 
-def average_account_balance(accountransaction_df, transaction_df):
+def average_account_balance(consumer_df, accountransaction_df, transaction_df):
     """
     Calculates the average account balance per consumer using accountransaction_df.
     """
@@ -73,7 +73,7 @@ def average_account_balance(accountransaction_df, transaction_df):
 
     return result
 
-def time_based_average_transaction_amounts(accountransaction_df, transaction_df):
+def time_based_average_transaction_amounts(consumer_df, accountransaction_df, transaction_df):
     """
     Creates features related to average transaction amounts over monthly, weekly, and yearly periods per consumer.
     """
@@ -110,7 +110,7 @@ def time_based_average_transaction_amounts(accountransaction_df, transaction_df)
 
     return result
 
-def descriptive_stats_by_category(accountransaction_df, transaction_df):
+def descriptive_stats_by_category(consumer_df, accountransaction_df, transaction_df):
     """
     Creates descriptive statistics based on amounts spent/going into consumers' accounts
     """
@@ -128,7 +128,7 @@ def descriptive_stats_by_category(accountransaction_df, transaction_df):
 
     return result
 
-def outflow_stats(accountransaction_df, transaction_df):
+def outflow_stats(consumer_df, accountransaction_df, transaction_df):
     """
     Features based on spending habits over time
     """
@@ -150,7 +150,7 @@ def outflow_stats(accountransaction_df, transaction_df):
 
     return result
 
-def outflow_over_time(accountransaction_df, transaction_df):
+def outflow_over_time(consumer_df, accountransaction_df, transaction_df):
     import pandas as pd
 
     outflows = transaction_df[transaction_df.credit_or_debit == 'DEBIT']
@@ -197,7 +197,7 @@ def outflow_over_time(accountransaction_df, transaction_df):
     result = result.loc[:,~result.columns.duplicated()].copy()
     return result
 
-def outflow_over_time_fix(accounttransaction_df, transaction_df):
+def outflow_over_time_fix(consumer_df, accounttransaction_df, transaction_df):
     import pandas as pd
 
     # Filter and Prepare Transactions
@@ -265,7 +265,7 @@ def outflow_over_time_fix(accounttransaction_df, transaction_df):
     
     return result
 
-def balance_over_time(accounttransaction_df, transaction_df):
+def balance_over_time(consumer_df, accounttransaction_df, transaction_df):
     """
     Calculate monthly balance information for each consumer and extract multiple features
     based on the monthly balance data.
@@ -409,3 +409,11 @@ def balance_over_time(accounttransaction_df, transaction_df):
     balance_features_df = extract_balance_features(monthly_balance_df)
     
     return balance_features_df
+
+def credit_score(consumer_df, accountransaction_df, transaction_df):
+    """
+    Extracts the credit score per consumer.
+    """
+    credit_score_df = consumer_df[['prism_consumer_id', 'credit_score']]
+    
+    return credit_score_df

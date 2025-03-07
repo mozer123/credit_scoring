@@ -225,7 +225,7 @@ class MetadataManager:
         except Exception as e:
             print(f"Warning: Failed to cache {feature_name}: {e}")
 
-def execute_selected_features(selected_features, account_df, transaction_df):
+def execute_selected_features(selected_features, consumer_df, account_df, transaction_df):
     """
     Execute only new or modified feature functions and return their results.
     
@@ -279,7 +279,7 @@ def execute_selected_features(selected_features, account_df, transaction_df):
         print("\nExecuting features...")
         for fn in features_to_execute:
             print(f"- Running {fn.__name__}...")
-            result = fn(account_df, transaction_df)
+            result = fn(consumer_df, account_df, transaction_df)
             feature_dataframes.append(result)
             
             # Update metadata and cache for this function
