@@ -1,20 +1,54 @@
-# Cash Score System: Predicting Loan Default Probability Using Bank Transaction Data
+# Predicting Loan Default Probability Using Transaction Data
 
 Mert Ozer, Brandon Dioneda, Qianjin Zhou
 
 ## Introduction
 
-Traditional credit scoring models (e.g. FICO Score) often fail to account for individuals lacking a conventional credit history.
-
-Our project leverages alternative financial data, such as categorized bank transactions and income predictions, to develop a fairer creditworthiness assessment with advanced machine learning (ML) models.
+- Traditional credit scoring models exclude individuals without credit history, limiting financial access.
+- This project develops a Cash Score, an alternative credit measure using financial behavior.
+- It analyzes bank transactions, account activity, and income patterns for better credit assessment.
+- With advancements in data infrastructure and open banking, we now have the technology to efficiently leverage financial data, making this the ideal moment to redefine credit assessment.
+- This allows us to extend loans to more newcomers, including immigrants and students, while also generating greater profits for our partners.
 
 ## Research Question
 
-How can ML be applied to develop a "Cash Score" that accurately reflects financial behavior and equal access to credit? Can we predict if someone will credit default or not based on their behavior?
+How can machine learning be applied to develop a "Cash Score" that accurately reflects financial behavior and equal access to credit?
 
 ## Data Overview
 
-Bank transaction data (2017-2023) provided  by PrismData. Includes categorized inflow and outflow transactions sufficient to extract features like: income levels, spending habits, balance changes, and other consumer-level financial behaviors.
+**Sample of Consumer Data**
+
+| prism_consumer_id | evaluation_date | credit_score | DQ_TARGET |
+| ----------------- | --------------- | ------------ | --------- |
+| 0                 | 2021-09-01      | 726.0        | 0.0       |
+| 1                 | 2021-07-01      | 626.0        | 0.0       |
+| ...               | ...             | ...          | ...       |
+
+---
+
+**Sample of Account Data**
+
+| prism_consumer_id | prism_account_id | account_type | balance_date | balance |
+| ----------------- | ---------------- | ------------ | ------------ | ------- |
+| 3023              | 0                | SAVINGS      | 2021-08-31   | 90.57   |
+| 3023              | 1                | CHECKING     | 2021-08-31   | 225.95  |
+| ...               | ...              | ...          | ...          | ...     |
+
+---
+
+**Sample Transaction Data**
+
+| prism_consumer_id | amount | credit_or_debit | posted_date | category        |
+| ----------------- | ------ | --------------- | ----------- | --------------- |
+| 3023              | 0.05   | CREDIT          | 2021-04-16  | MISCELLANEOUS   |
+| 10533             | 4.96   | DEBIT           | 2021-03-11  | BILLS_UTILITIES |
+| ...               | ...    | ...             | ...         | ...             |
+
+---
+
+- **Consumer Data**: States if a consumer credit defaulted
+- **Account Data**: Record of consumers' bank accounts
+- **Transaction Data**: Tracks consumers' bank transactions
 
 ## Feature Engineering
 
@@ -30,17 +64,13 @@ While developing these features, we had to ensure our model remained unbiased. I
 
 ## Feature Selection
 
-
 <iframe src="figures/mutual_info_top15.png" width="100%" height="500px" frameBorder=0></iframe>
 
 ## Machine Learning Models
 
-
 ## Reason Codes
 
-
 ## Evaluating Our Scores Against the FICO Score
-
 
 ## Results
 
