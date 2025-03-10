@@ -2,7 +2,7 @@
 
 Mert Ozer, Brandon Dioneda, Qianjin Zhou
 
-## Introduction
+## 1. Introduction
 
 - Traditional credit scoring models exclude individuals without credit history, limiting financial access.
 - This project develops a Cash Score, an alternative credit measure using financial behavior.
@@ -10,13 +10,13 @@ Mert Ozer, Brandon Dioneda, Qianjin Zhou
 - With advancements in data infrastructure and open banking, we now have the technology to efficiently leverage financial data, making this the ideal moment to redefine credit assessment.
 - This allows us to extend loans to more newcomers, including immigrants and students, while also generating greater profits for our partners.
 
-## Research Question
+## 2. Research Question
 
 How can machine learning be applied to develop a "Cash Score" that accurately reflects financial behavior and equal access to credit?
 
-## Data Overview
+## 3. Data Overview
 
-**Sample of Consumer Data**
+### Sample of Consumer Data
 
 | prism_consumer_id | evaluation_date | credit_score | DQ_TARGET |
 | ----------------- | --------------- | ------------ | --------- |
@@ -26,7 +26,7 @@ How can machine learning be applied to develop a "Cash Score" that accurately re
 
 ---
 
-**Sample of Account Data**
+### Sample of Account Data
 
 | prism_consumer_id | prism_account_id | account_type | balance_date | balance |
 | ----------------- | ---------------- | ------------ | ------------ | ------- |
@@ -36,7 +36,7 @@ How can machine learning be applied to develop a "Cash Score" that accurately re
 
 ---
 
-**Sample Transaction Data**
+### Sample Transaction Data
 
 | prism_consumer_id | amount | credit_or_debit | posted_date | category        |
 | ----------------- | ------ | --------------- | ----------- | --------------- |
@@ -50,7 +50,7 @@ How can machine learning be applied to develop a "Cash Score" that accurately re
 - **Account Data**: Record of consumers' bank accounts
 - **Transaction Data**: Tracks consumers' bank transactions
 
-## Feature Engineering
+## 4. Feature Engineering
 
 We created hundreds of features based on attributes in our datasets. Our features fall under 3 types concerned with:
 
@@ -62,29 +62,29 @@ Spending Features: Analyze spending patterns through outflow statistics over dif
 
 While developing these features, we had to ensure our model remained unbiased. In the financial services industry, compliance with the Equal Credit Opportunity Act (ECOA) is essential. This meant removing certain features—not only based on their impact on model performance but also to prevent unintentional bias toward specific demographics.
 
-## Feature Selection
+## 5. Feature Selection
 
 <iframe src="figures/mutual_info_top15.png" width="100%" height="500px" frameBorder=0></iframe>
 
-## Machine Learning Models
+## 6. Model Evaluation
 
-## Reason Codes
-
-## Evaluating Our Scores Against the FICO Score
-
-## Results
+## 7. Results
 
 <iframe src="figures/comparison_table.png" width="100%" height="500px" frameBorder=0></iframe>
 
 <iframe src="figures/model_confusion_matrix.png" width="100%" height="500px" frameBorder=0></iframe>
 
-## Conclusion
+## 8. Reason Codes
+
+## 9. Evaluating Our Cash Scores Against Traditional Credit Scores
+
+## 10. Future Work
 
 - Our "Cash Score" provides a more inclusive credit evaluation.
 - Real-time transaction data enhances creditworthiness assessment.
 - Future Work:
 
-## Acknowledgments & References
+## 11. Acknowledgments & References
 
 - We sincerely thank our mentors and PrismData for providing datasets.
 - Literature: AI in credit scoring, fairness in ML-based finance.
