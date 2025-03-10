@@ -4,7 +4,7 @@ Mert Ozer, Brandon Dioneda, Qianjin Zhou
 
 ## Website
 
-**Live Website:** [Cash Score Project](https://dsc-capstone.org)
+**Live Website:** [Cash Score Project](https://mozer123.github.io/credit_scoring/)
 
 ## Project Overview
 
@@ -49,8 +49,9 @@ To run this website locally:
 
 1. Clone the repository:
    ```
-   git clone https://github.com/dsc-capstone/dsc-capstone.github.io.git
-   cd dsc-capstone.github.io
+   git clone https://github.com/mozer123/credit_scoring.git
+   cd credit_scoring
+   git checkout gh-pages
    ```
 
 2. Open the website:
@@ -64,14 +65,14 @@ To run this website locally:
 
 3. For deployment:
    - The website is automatically deployed through GitHub Pages
-   - Any changes pushed to the main branch will be reflected on the live site
+   - Any changes pushed to the gh-pages branch will be reflected on the live site
 
 ## Credits and Acknowledgments
 
 This project was developed as part of the DSC 180AB Capstone sequence at UC San Diego's Halıcıoğlu Data Science Institute.
 
 - **Team Members:** Mert Ozer, Brandon Dioneda, Qianjin Zhou
-- **Faculty Advisor:** 
+- **Faculty Advisor:** Brian Duke (PrismData), Kyle Nero (PrismData), Berk Ustun (UCSD)
 - **Industry Partner:** PrismData
 - **Special Thanks:** We extend our gratitude to our mentors who provided guidance throughout this project, and to PrismData for providing the datasets that made this research possible.
 
