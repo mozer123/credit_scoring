@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cash Score: Predicting Loan Default Probability Using Transaction Data</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">Cash Score</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="#team">Team</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#introduction">Introduction</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#research">Research Question</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#data">Data</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#categorization">Transaction Categorization</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#feature-analysis">Feature Analysis</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#results">Results</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#conclusion">Conclusion</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="container text-center">
+            <h1>Predicting Loan Default Probability Using Transaction Data</h1>
+            <p class="lead">Developing a "Cash Score" for more inclusive credit assessment</p>
+            <div class="logos">
+                <img src="logos/hdsi-blue-gold.png" alt="HDSI Logo" height="60">
+                <img src="logos/prism_data.png" alt="Prism Data Logo" height="60">
+            </div>
+        </div>
+    </header>
+
+    <main class="container my-5">
+        <section id="team" class="mb-5">
+            <h2>Team</h2>
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <div class="card team-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Qianjin Zhou</h5>
+                            <p class="card-text">Data Science Student</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card team-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Brandon Dioneda</h5>
+                            <p class="card-text">Data Science Student</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card team-card">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Mert Ozer</h5>
+                            <p class="card-text">Data Science Student</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="introduction" class="mb-5">
+            <h2>Introduction</h2>
+            <div class="row">
+                <div class="col-lg-8">
+                    <p>Traditional credit scoring models exclude individuals without credit history, limiting financial access. Our project develops a <strong>Cash Score</strong>, an alternative credit measure using financial behavior.</p>
+                    <p>Creditworthiness assessment has been a longstanding challenge. While modern credit scores became widely adopted in 1989, these traditional models often fail to account for the financial profiles of individuals who lack conventional credit histories. As a result, millions are excluded from fair access to credit.</p>
+                    <p>Moreover, early credit evaluations were frequently marred by discriminatory practices, factoring in age, race, and marital status. Even today, reliance on conventional credit history can reinforce socioeconomic biases.</p>
+                    <p>We analyze bank transactions, account activity, and income patterns for better credit assessment. With advancements in data infrastructure and open banking, we now have the technology to efficiently leverage financial data, making this the ideal moment to redefine credit assessment.</p>
+                    <p>This allows us to extend loans to more newcomers, including immigrants and students, while also generating greater profits for our partners.</p>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Why Cash Score?</h5>
+                            <ul>
+                                <li>More inclusive than traditional credit scores</li>
+                                <li>Uses real-time transaction data</li>
+                                <li>Provides access to credit for underserved populations</li>
+                                <li>Reduces bias in credit assessment</li>
+                                <li>Captures day-to-day financial behavior</li>
+                                <li>Complements traditional credit scores</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="research" class="mb-5">
+            <h2>Research Question</h2>
+            <div class="research-question">
+                <p>How can machine learning be applied to develop a "Cash Score" that accurately reflects financial behavior and equal access to credit?</p>
+            </div>
+            <div class="row mt-4">
+                <div class="col-lg-12">
+                    <h4>The Problem</h4>
+                    <p>We faced two main challenges in this project:</p>
+                    <ol>
+                        <li><strong>Transaction Categorization:</strong> Accurately categorizing bank transaction memos to understand spending patterns</li>
+                        <li><strong>Default Prediction:</strong> Using categorized transactions and account data to predict loan default probability</li>
+                    </ol>
+                    <p>Recent studies have shown that alternative data sources, including transaction data, can significantly improve credit scoring accuracy, especially for individuals with limited or no traditional credit history, thus addressing the issue of financial inclusion.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="data" class="mb-5">
+            <h2>Data Overview</h2>
+            <p class="mb-4">We used bank transaction data from 2017-2023 provided by PrismData to develop our models. The data includes detailed information about consumers' financial activities, account balances, and transaction histories.</p>
+            
+            <div class="data-tables">
+                <h4>Sample of Consumer Data</h4>
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                <th>prism_consumer_id</th>
+                                <th>evaluation_date</th>
+                                <th>credit_score</th>
+                                <th>DQ_TARGET</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>0</td>
+                                <td>2021-09-01</td>
+                                <td>726.0</td>
+                                <td>0.0</td>
+                            </tr>
+                            <tr>
+                                <td>1</td>
+                                <td>2021-07-01</td>
+                                <td>626.0</td>
+                                <td>0.0</td>
+                            </tr>
+                            <tr>
+                                <td>...</td>
+                                <td>...</td>
+                                <td>...</td>
+                                <td>...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <hr class="divider">
+                
+                <h4>Sample of Account Data</h4>
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                <th>prism_consumer_id</th>
+                                <th>prism_account_id</th>
+                                <th>account_type</th>
+                                <th>balance_date</th>
+                                <th>balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>3023</td>
+                                <td>0</td>
+                                <td>SAVINGS</td>
+                                <td>2021-08-31</td>
+                                <td>90.57</td>
+                            </tr>
+                            <tr>
+                                <td>3023</td>
+                                <td>1</td>
+                                <td>CHECKING</td>
+                                <td>2021-08-31</td>
+                                <td>225.95</td>
+                            </tr>
+                            <tr>
+                                <td>...</td>
+                                <td>...</td>
+                                <td>...</td>
+                                <td>...</td>
+                                <td>...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <hr class="divider">
+                
+                <h4>Sample Transaction Data</h4>
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                <th>prism_consumer_id</th>
+                                <th>amount</th>
+                                <th>credit_or_debit</th>
+                                <th>posted_date</th>
+                                <th>category</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>3023</td>
+                                <td>0.05</td>
+                                <td>CREDIT</td>
+                                <td>2021-04-16</td>
+                                <td>MISCELLANEOUS</td>
+                            </tr>
+                            <tr>
+                                <td>10533</td>
+                                <td>4.96</td>
+                                <td>DEBIT</td>
+                                <td>2021-03-11</td>
+                                <td>BILLS_UTILITIES</td>
+                            </tr>
+                            <tr>
+                                <td>...</td>
+                                <td>...</td>
+                                <td>...</td>
+                                <td>...</td>
+                                <td>...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <hr class="divider">
+                
+                <h4>Transaction Categorization Data</h4>
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                <th>prism_consumer_id</th>
+                                <th>amount</th>
+                                <th>memo</th>
+                                <th>posted_date</th>
+                                <th>category</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>3023</td>
+                                <td>0.05</td>
+                                <td>INTEREST PAYMENT</td>
+                                <td>2021-04-16</td>
+                                <td>MISCELLANEOUS</td>
+                            </tr>
+                            <tr>
+                                <td>10533</td>
+                                <td>4.96</td>
+                                <td>ELECTRIC BILL PAYMENT</td>
+                                <td>2021-03-11</td>
+                                <td>BILLS_UTILITIES</td>
+                            </tr>
+                            <tr>
+                                <td>...</td>
+                                <td>...</td>
+                                <td>...</td>
+                                <td>...</td>
+                                <td>...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="card mb-4">
+                    <div class="card-header">Transaction Categories</div>
+                    <div class="card-body">
+                        <p>Our dataset includes 47 different transaction categories. For the memo categorization task, we focused on 9 key categories:</p>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <ul>
+                                    <li>FOOD_AND_BEVERAGES</li>
+                                    <li>GENERAL_MERCHANDISE</li>
+                                    <li>GROCERIES</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-4">
+                                <ul>
+                                    <li>PETS</li>
+                                    <li>TRAVEL</li>
+                                    <li>MORTGAGE</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-4">
+                                <ul>
+                                    <li>OVERDRAFT</li>
+                                    <li>EDUCATION</li>
+                                    <li>RENT</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <p class="mt-3">We filtered rows where the memo field differs from the category field to allow our models to look for more meaningful features.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-lg-12">
+                    <div class="data-summary">
+                        <ul class="list-group">
+                            <li class="list-group-item"><strong>Consumer Data:</strong> States if a consumer credit defaulted</li>
+                            <li class="list-group-item"><strong>Account Data:</strong> Record of consumers' bank accounts</li>
+                            <li class="list-group-item"><strong>Transaction Data:</strong> Tracks consumers' bank transactions</li>
+                            <li class="list-group-item"><strong>Transaction Categorization Data:</strong> Contains transaction memos used for categorization</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-info mt-3">
+                        <h5>Data Preparation</h5>
+                        <p>We filtered out null or inconsistent records, removed outlier transactions with extreme values, and merged the datasets on consumer IDs to create a comprehensive view of each individual's financial behavior. For transaction categorization, we cleaned memo text by converting to lowercase, removing special characters and numbers, and trimming extra spaces.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="categorization" class="mb-5">
+            <h2>Transaction Categorization</h2>
+            <div class="row">
+                <div class="col-lg-6">
+                    <h4>Memo Cleaning & Processing</h4>
+                    <p>To prepare our dataset for analysis, we cleaned the transaction memo text by:</p>
+                    <ul>
+                        <li>Converting all bank memos to lowercase</li>
+                        <li>Removing special characters and numbers</li>
+                        <li>Removing placeholder sequences (e.g., "xxx")</li>
+                        <li>Trimming extra spaces</li>
+                    </ul>
+                    <p>We also extracted additional features from transaction data:</p>
+                    <ul>
+                        <li><strong>TF-IDF:</strong> Identifying distinctive words in transaction memos</li>
+                        <li><strong>Date Features:</strong> Month, day of week, weekend indicator</li>
+                        <li><strong>Amount Features:</strong> Whether the amount is a whole number</li>
+                    </ul>
+                </div>
+                <div class="col-lg-6">
+                    <h4>Categorization Models</h4>
+                    <p>We tested several models to categorize transactions based on their memos:</p>
+                    <table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Model</th>
+                                <th>Accuracy</th>
+                                <th>Speed</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>FastText</td>
+                                <td>96.88%</td>
+                                <td>Fastest</td>
+                            </tr>
+                            <tr>
+                                <td>Logistic Regression</td>
+                                <td>96.45%</td>
+                                <td>Fast</td>
+                            </tr>
+                            <tr>
+                                <td>XGBoost</td>
+                                <td>91.98%</td>
+                                <td>Medium</td>
+                            </tr>
+                            <tr>
+                                <td>DistilBERT</td>
+                                <td>89.56%</td>
+                                <td>Slow</td>
+                            </tr>
+                            <tr>
+                                <td>LLMs (Nemotron/Llama)</td>
+                                <td>~75-78%</td>
+                                <td>Very Slow</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p><strong>FastText</strong> emerged as the best model, offering an excellent balance of accuracy, training time, and inference speed.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="features" class="mb-5">
+            <h2>Feature Engineering</h2>
+            <div class="row">
+                <div class="col-lg-6">
+                    <p>We created 266 features based on attributes in our datasets. Our features fall under 3 types:</p>
+                    <ul>
+                        <li><strong>Bank Balance Features:</strong> 
+                            <ul>
+                                <li>Current balance: Money in a person's account up to the most recent transaction</li>
+                                <li>Balance over time: Account balance in 3, 6, 9, and 12-month periods</li>
+                                <li>Average account balance: Mean transaction amount per consumer</li>
+                            </ul>
+                        </li>
+                        <li><strong>Income Features:</strong> 
+                            <ul>
+                                <li>Time-based average transaction amounts: Monthly, weekly, yearly averages</li>
+                                <li>Net monthly cash flow: Difference between inflows and outflows</li>
+                                <li>Category statistics: Number, sum, mean, median, and variance of transactions by category</li>
+                            </ul>
+                        </li>
+                        <li><strong>Spending Features:</strong> 
+                            <ul>
+                                <li>Outflow statistics: Spending habits over different time periods</li>
+                                <li>Outflow over time: Mean and variance of spending over 3, 6, 9, and 12 months</li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <div class="alert alert-warning mt-3">
+                        <h5>Ethical Considerations</h5>
+                        <p>During feature creation, we ensured compliance with fair lending regulations such as the Equal Credit Opportunity Act (ECOA). We removed variables that might inadvertently cause disparate impact to maintain fairness.</p>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="feature-image mb-4">
+                        <img src="figures/mutual_info_top15.png" alt="Top 15 Features by Mutual Information" class="img-fluid">
+                        <p class="text-center"><em>Top 15 Features by Mutual Information</em></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-lg-12">
+                    <h4>Feature Selection</h4>
+                    <p>To reduce dimensionality from our initial 266 features, we applied:</p>
+                    <ul>
+                        <li><strong>Mutual Information (MI):</strong> Calculated MI between each feature and the delinquency target</li>
+                        <li><strong>Top 50 Features:</strong> We retained the top 50 features based on MI for final model training</li>
+                    </ul>
+                    <p>This helped mitigate overfitting and improved interpretability while retaining most of the predictive signal.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="feature-analysis" class="mb-5">
+            <h2>Feature Analysis</h2>
+            <p>Our feature analysis revealed important patterns that differentiate high-risk and low-risk consumers. Here are two key visualizations that demonstrate these patterns:</p>
+            
+            <div class="row mb-4">
+                <div class="col-lg-7">
+                    <div class="card">
+                        <div class="card-header">
+                            <h4>Monthly Account Balance Trends</h4>
+                        </div>
+                        <div class="card-body">
+                            <img src="figures/monthly_balance_trend.png" alt="Monthly Account Balance Trend for Selected Consumers" class="img-fluid">
+                        </div>
+                        <div class="card-footer">
+                            <p>This visualization shows monthly balance trends for selected consumers. Notice how consumers with consistently decreasing or highly variant balances tend to have higher default risk, while those with stable or gradually increasing balances typically have lower default risk.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-5">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h4>Average Account Balance Distribution</h4>
+                        </div>
+                        <div class="card-body">
+                            <img src="figures/featureplot.png" alt="Bad Rate Plot for Average Account Balance" class="img-fluid">
+                        </div>
+                        <div class="card-footer">
+                            <p>This "Bad Rate" plot shows the relationship between average account balance and default probability. Consumers with lower average balances have significantly higher default rates. Specifically:</p>
+                            <ul>
+                                <li>27.9% of consumers with average account balance below $0 have a default history</li>
+                                <li>As average account balance increases, default probability decreases</li>
+                                <li>Only 1.9% of consumers with average account balance over $20,000 have a loan default history</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-info">
+                <h5>Key Insights from Feature Analysis</h5>
+                <p>Our analysis revealed that balance-related features are among the strongest predictors of default risk. Consumers with consistently low balances, frequent negative balances, or highly volatile account activity show significantly higher default rates. These patterns provide valuable signals that traditional credit scores might miss, especially for consumers with limited credit history.</p>
+            </div>
+        </section>
+
+        <section id="results" class="mb-5">
+            <h2>Results</h2>
+            <p class="lead">We explored and compared five models to estimate the probability of loan default. After hyperparameter tuning, <strong>XGBoost</strong> emerged as the best performer with an ROC-AUC of 0.81.</p>
+            
+            <div class="row mb-5">
+                <div class="col-lg-12">
+                    <h4>Model Performance Comparison</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">Performance Metrics</div>
+                                <div class="card-body">
+                                    <img src="figures/comparison_table.png" alt="Model Comparison" class="img-fluid">
+                                    <p class="mt-3">This table compares the balanced accuracy and ROC-AUC scores of our five models. XGBoost and Gradient Boosting achieved the highest ROC-AUC (0.81), with XGBoost providing better balanced accuracy (0.71 vs 0.54).</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">XGBoost ROC Curve</div>
+                                <div class="card-body">
+                                    <img src="figures/roc-auc-xgboost.png" alt="ROC-AUC Curve" class="img-fluid">
+                                    <p class="mt-3">The ROC curve illustrates the trade-off between sensitivity (true positive rate) and specificity (1 - false positive rate). Our XGBoost model achieved an AUC of 0.81, indicating strong discriminative power between defaulters and non-defaulters.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-5">
+                <div class="col-lg-12">
+                    <h4>Model Evaluation</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">Confusion Matrix</div>
+                                <div class="card-body">
+                                    <img src="figures/model_confusion_matrix.png" alt="Confusion Matrix" class="img-fluid">
+                                    <p class="mt-3">The confusion matrix shows our model's prediction accuracy. While we achieve good overall performance, there's a trade-off between identifying true defaulters and minimizing false positives. This balance can be adjusted based on business requirements.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">Feature Importance</div>
+                                <div class="card-body">
+                                    <img src="figures/top_feats_SHAP.png" alt="SHAP Values" class="img-fluid">
+                                    <p class="mt-3">This SHAP (SHapley Additive exPlanations) plot shows the most influential features in our model. Balance-related features dominate the top predictors, confirming our feature analysis findings that account balance patterns are key indicators of default risk.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-5">
+                <div class="col-lg-12">
+                    <h4>Key Factors Driving Default Risk</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">Top Reasons for Default</div>
+                                <div class="card-body">
+                                    <p>For consumers predicted to default, we identified the most common factors that contributed to their high-risk assessment:</p>
+                                    <ol>
+                                        <li><strong>Balance Count:</strong> Frequency of balance changes</li>
+                                        <li><strong>Balance Minimum:</strong> Extremely low minimum balance</li>
+                                        <li><strong>Average Account Balance:</strong> Overall low average balance</li>
+                                        <li><strong>Balance Median:</strong> Consistently low median balance</li>
+                                        <li><strong>Refund Amount Mean:</strong> Irregular or insufficient financial inflows</li>
+                                    </ol>
+                                    <div class="alert alert-warning mt-3">
+                                        <p class="mb-0"><strong>Key Insight:</strong> How consistently a consumer maintains adequate funds is a key default indicator. Frequent balance fluctuations, especially toward low or negative values, strongly signal potential default risk.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">Reason Code Distribution</div>
+                                <div class="card-body">
+                                    <img src="figures/top_reason_codes.png" alt="Top 5 Reasons for Default on the Test Set" class="img-fluid">
+                                    <p class="mt-3">This chart shows the five most common "reason codes" that appeared among the top three SHAP contributors for each consumer predicted to default. For every predicted-default consumer, we extracted their three highest-impact features according to SHAP values, then calculated the proportion of times each feature was flagged as a leading cause of risk.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-5">
+                <div class="col-lg-12">
+                    <h4>Cash Score vs. Traditional Credit Score</h4>
+                    <p>We compared our Cash Score against traditional credit scores to evaluate its complementary value:</p>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">Scatter Plot Comparison</div>
+                                <div class="card-body">
+                                    <img src="figures/cash_vs_credit_scatter.png" alt="Scatter Plot of Cash Score vs. Traditional Credit Score" class="img-fluid">
+                                    <p class="mt-3"><strong>Key Observations:</strong></p>
+                                    <ul>
+                                        <li>Red points (defaults) concentrate in the lower-left region (low scores on both measures)</li>
+                                        <li>Consumers with mid-range credit scores but high Cash Scores (middle-right area) show lower default rates</li>
+                                        <li>The upper-right quadrant (high scores on both measures) shows nearly zero defaults</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">Heatmap Comparison</div>
+                                <div class="card-body">
+                                    <img src="figures/cash_vs_credit_heatmap.png" alt="Heatmap of Cash Score vs. Traditional Credit Score" class="img-fluid">
+                                    <p class="mt-3"><strong>Key Insights:</strong></p>
+                                    <ul>
+                                        <li>Default rates exceed 30-40% in the lower-left corner (low scores on both measures)</li>
+                                        <li>Higher Cash Scores correlate with lower default rates even within the same credit score tier</li>
+                                        <li>The gradient pattern shows how Cash Score provides additional risk differentiation beyond traditional credit scores</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-5">
+                <div class="col-lg-12">
+                    <div class="card">
+                        <div class="card-header">Benefits of Combined Approach</div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5>Value of Cash Score</h5>
+                                    <ul>
+                                        <li>Captures day-to-day financial behavior not reflected in credit history</li>
+                                        <li>Identifies financially stable individuals with limited credit history</li>
+                                        <li>Reveals liquidity challenges that may not be apparent in conventional scores</li>
+                                        <li>Provides a more holistic view of consumer financial health</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5>Business Impact</h5>
+                                    <ul>
+                                        <li>Expands the pool of creditworthy applicants</li>
+                                        <li>Reduces default rates through more accurate risk assessment</li>
+                                        <li>Enables more precise risk-based pricing</li>
+                                        <li>Creates opportunities for financial inclusion while maintaining profitability</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="conclusion" class="mb-5">
+            <h2>Conclusion</h2>
+            <div class="row">
+                <div class="col-lg-8">
+                    <p>Our results demonstrate that bank transaction data, combined with carefully engineered features, can significantly improve credit risk assessment. Key takeaways include:</p>
+                    <ul>
+                        <li><strong>Memo Categorization:</strong> FastText achieved excellent accuracy (96.88%) and scalability in labeling transaction memos.</li>
+                        <li><strong>Predictive Modeling:</strong> XGBoost emerged as a strong performer for loan default risk prediction, yielding an ROC-AUC of 0.81.</li>
+                        <li><strong>Fairness Considerations:</strong> We rigorously filtered sensitive or proxy variables to comply with the Equal Credit Opportunity Act, underscoring the ethical dimension of credit scoring.</li>
+                        <li><strong>FICO Comparisons:</strong> The new "Cash Score" can complement traditional credit scores, especially for thin-file or borderline applicants.</li>
+                    </ul>
+                    <p>Future work includes real-time model updating, extended interpretability analyses, and expanded data sources for even richer behavioral insights.</p>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card bg-light h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Impact</h5>
+                            <p>The Cash Score has the potential to:</p>
+                            <ul>
+                                <li>Expand credit access to millions of underserved individuals</li>
+                                <li>Reduce bias in lending decisions</li>
+                                <li>Improve risk assessment accuracy for financial institutions</li>
+                                <li>Create a more inclusive financial ecosystem</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-dark text-white py-4">
+        <div class="container text-center">
+            <p>© 2025 HDSI Capstone Showcase, UC San Diego</p>
+            <div class="logos">
+                <img src="logos/hdsi-white.png" alt="HDSI Logo" height="40">
+                <img src="logos/prism_data.png" alt="Prism Data Logo" height="40">
+            </div>
+        </div>
+    </footer>
+
+    <!-- Image Modal -->
+    <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="imageModalLabel">Image Preview</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-img-container">
+                        <img id="modalImage" src="" alt="Enlarged Image" class="img-fluid">
+                    </div>
+                    <div class="zoom-controls mt-3">
+                        <button id="zoomIn" class="btn btn-sm btn-outline-primary me-2">
+                            <i class="bi bi-zoom-in"></i> Zoom In
+                        </button>
+                        <button id="zoomOut" class="btn btn-sm btn-outline-primary me-2">
+                            <i class="bi bi-zoom-out"></i> Zoom Out
+                        </button>
+                        <button id="resetZoom" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-arrow-counterclockwise"></i> Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+    <script>
+        // Image modal functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('imageModal');
+            const modalImage = document.getElementById('modalImage');
+            const modalTitle = document.getElementById('imageModalLabel');
+            const zoomIn = document.getElementById('zoomIn');
+            const zoomOut = document.getElementById('zoomOut');
+            const resetZoom = document.getElementById('resetZoom');
+            
+            let currentZoom = 1;
+            
+            // Add enlarge buttons to all figures
+            document.querySelectorAll('.card-body img, .feature-image img').forEach(img => {
+                // Create container if not already in one
+                let container = img.parentElement;
+                if (!container.classList.contains('figure-container')) {
+                    container = document.createElement('div');
+                    container.className = 'figure-container';
+                    img.parentNode.insertBefore(container, img);
+                    container.appendChild(img);
+                }
+                
+                // Add enlarge button
+                const btn = document.createElement('button');
+                btn.className = 'enlarge-btn';
+                btn.innerHTML = '<i class="bi bi-arrows-fullscreen"></i>';
+                btn.title = "Enlarge image";
+                btn.onclick = function(e) {
+                    e.preventDefault();
+                    modalImage.src = img.src;
+                    modalTitle.textContent = img.alt;
+                    currentZoom = 1;
+                    modalImage.style.transform = `scale(${currentZoom})`;
+                    modalImage.style.translate = '0px 0px';
+                    const bsModal = new bootstrap.Modal(modal);
+                    bsModal.show();
+                };
+                container.appendChild(btn);
+            });
+            
+            // Variables for panning
+            let isDragging = false;
+            let startX, startY, translateX = 0, translateY = 0;
+            const container = document.querySelector('.modal-img-container');
+            
+            // Mouse events for panning
+            container.addEventListener('mousedown', function(e) {
+                if (currentZoom > 1) {
+                    isDragging = true;
+                    container.classList.add('grabbing');
+                    startX = e.clientX - translateX;
+                    startY = e.clientY - translateY;
+                    e.preventDefault();
+                }
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (!isDragging) return;
+                translateX = e.clientX - startX;
+                translateY = e.clientY - startY;
+                modalImage.style.translate = `${translateX}px ${translateY}px`;
+            });
+            
+            document.addEventListener('mouseup', function() {
+                isDragging = false;
+                container.classList.remove('grabbing');
+            });
+            
+            // Touch events for mobile panning
+            container.addEventListener('touchstart', function(e) {
+                if (currentZoom > 1) {
+                    isDragging = true;
+                    container.classList.add('grabbing');
+                    startX = e.touches[0].clientX - translateX;
+                    startY = e.touches[0].clientY - translateY;
+                }
+            });
+            
+            document.addEventListener('touchmove', function(e) {
+                if (!isDragging) return;
+                translateX = e.touches[0].clientX - startX;
+                translateY = e.touches[0].clientY - startY;
+                modalImage.style.translate = `${translateX}px ${translateY}px`;
+            });
+            
+            document.addEventListener('touchend', function() {
+                isDragging = false;
+                container.classList.remove('grabbing');
+            });
+            
+            // Zoom functionality
+            zoomIn.addEventListener('click', function() {
+                currentZoom += 0.1;
+                modalImage.style.transform = `scale(${currentZoom})`;
+            });
+            
+            zoomOut.addEventListener('click', function() {
+                if (currentZoom > 0.5) {
+                    currentZoom -= 0.1;
+                    modalImage.style.transform = `scale(${currentZoom})`;
+                    
+                    // Reset position if zoomed out to original size
+                    if (currentZoom <= 1) {
+                        translateX = 0;
+                        translateY = 0;
+                        modalImage.style.translate = '0px 0px';
+                    }
+                }
+            });
+            
+            resetZoom.addEventListener('click', function() {
+                currentZoom = 1;
+                translateX = 0;
+                translateY = 0;
+                modalImage.style.transform = `scale(${currentZoom})`;
+                modalImage.style.translate = '0px 0px';
+            });
+            
+            // Reset zoom and position when modal is closed
+            modal.addEventListener('hidden.bs.modal', function() {
+                currentZoom = 1;
+                translateX = 0;
+                translateY = 0;
+                modalImage.style.transform = `scale(${currentZoom})`;
+                modalImage.style.translate = '0px 0px';
+            });
+        });
+    </script>
+</body>
+</html> 

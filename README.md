@@ -2,89 +2,77 @@
 
 Mert Ozer, Brandon Dioneda, Qianjin Zhou
 
-## 1. Introduction
+## Website
 
-- Traditional credit scoring models exclude individuals without credit history, limiting financial access.
-- This project develops a Cash Score, an alternative credit measure using financial behavior.
-- It analyzes bank transactions, account activity, and income patterns for better credit assessment.
-- With advancements in data infrastructure and open banking, we now have the technology to efficiently leverage financial data, making this the ideal moment to redefine credit assessment.
-- This allows us to extend loans to more newcomers, including immigrants and students, while also generating greater profits for our partners.
+**Live Website:** [Cash Score Project](https://dsc-capstone.org)
 
-## 2. Research Question
+## Project Overview
 
-How can machine learning be applied to develop a "Cash Score" that accurately reflects financial behavior and equal access to credit?
+This project develops a "Cash Score" as an alternative credit assessment measure for individuals with limited or no traditional credit history. By analyzing bank transaction data, account activity, and income patterns, we've created a machine learning model that predicts loan default probability with an ROC-AUC of 0.81. Our approach enables more inclusive financial access while maintaining accurate risk assessment, potentially extending credit opportunities to underserved populations such as immigrants and students.
 
-## 3. Data Overview
+## Project Content Summary
 
-### Sample of Consumer Data
+Our website presents a comprehensive analysis of using transaction data to predict loan default probability:
 
-| prism_consumer_id | evaluation_date | credit_score | DQ_TARGET |
-| ----------------- | --------------- | ------------ | --------- |
-| 0                 | 2021-09-01      | 726.0        | 0.0       |
-| 1                 | 2021-07-01      | 626.0        | 0.0       |
-| ...               | ...             | ...          | ...       |
+- **Introduction**: We address the limitations of traditional credit scoring models and propose an alternative approach using financial behavior data.
 
----
+- **Research Question**: We explore how machine learning can be applied to develop a "Cash Score" that accurately reflects financial behavior while promoting equal access to credit.
 
-### Sample of Account Data
+- **Data Overview**: The project utilizes bank transaction data, account information, and consumer credit histories provided by PrismData, covering the period from 2017-2023.
 
-| prism_consumer_id | prism_account_id | account_type | balance_date | balance |
-| ----------------- | ---------------- | ------------ | ------------ | ------- |
-| 3023              | 0                | SAVINGS      | 2021-08-31   | 90.57   |
-| 3023              | 1                | CHECKING     | 2021-08-31   | 225.95  |
-| ...               | ...              | ...          | ...          | ...     |
+- **Feature Engineering**: We developed over 200 features across three main categories:
+  - Bank Balance Features (account balance trends, changes over time)
+  - Income Features (transaction amounts, cash flow, category statistics)
+  - Spending Features (outflow patterns across different time periods)
 
----
+- **Model Development**: After testing multiple approaches, XGBoost emerged as our best-performing model with an ROC-AUC of 0.81, demonstrating strong predictive power for loan default risk.
 
-### Sample Transaction Data
+- **Results & Findings**: Our Cash Score effectively complements traditional credit scores, particularly for individuals with limited credit history, while maintaining compliance with fair lending regulations.
 
-| prism_consumer_id | amount | credit_or_debit | posted_date | category        |
-| ----------------- | ------ | --------------- | ----------- | --------------- |
-| 3023              | 0.05   | CREDIT          | 2021-04-16  | MISCELLANEOUS   |
-| 10533             | 4.96   | DEBIT           | 2021-03-11  | BILLS_UTILITIES |
-| ...               | ...    | ...             | ...         | ...             |
+Visit our website for detailed visualizations, methodology, and complete findings.
 
----
+## Repository Structure
 
-- **Consumer Data**: States if a consumer credit defaulted
-- **Account Data**: Record of consumers' bank accounts
-- **Transaction Data**: Tracks consumers' bank transactions
+```
+credit_scoring/
+├── figures/              # Data visualizations and charts
+├── logos/                # Project and partner logos
+├── index.html            # Main website content
+├── styles.css            # CSS styling for the website
+├── script.js             # JavaScript functionality
+└── README.md             # Project documentation
+```
 
-## 4. Feature Engineering
+## Build and Deployment Instructions
 
-We created hundreds of features based on attributes in our datasets. Our features fall under 3 types concerned with:
+To run this website locally:
 
-Bank Balance Features: Measure account balance trends, including current balance, balance changes over time, and average account balance.
+1. Clone the repository:
+   ```
+   git clone https://github.com/dsc-capstone/dsc-capstone.github.io.git
+   cd dsc-capstone.github.io
+   ```
 
-Income Features:Capture income-related metrics like average transaction amounts over different time frames, net monthly cash flow, and detailed statistics on transaction categories.
+2. Open the website:
+   - Option 1: Simply open the `index.html` file in your web browser
+   - Option 2: Use a local server (recommended for full functionality)
+     ```
+     # Using Python
+     python -m http.server
+     # Then visit http://localhost:8000 in your browser
+     ```
 
-Spending Features: Analyze spending patterns through outflow statistics over different time periods, including yearly, monthly, and weekly trends.
+3. For deployment:
+   - The website is automatically deployed through GitHub Pages
+   - Any changes pushed to the main branch will be reflected on the live site
 
-While developing these features, we had to ensure our model remained unbiased. In the financial services industry, compliance with the Equal Credit Opportunity Act (ECOA) is essential. This meant removing certain features—not only based on their impact on model performance but also to prevent unintentional bias toward specific demographics.
+## Credits and Acknowledgments
 
-## 5. Feature Selection
+This project was developed as part of the DSC 180AB Capstone sequence at UC San Diego's Halıcıoğlu Data Science Institute.
 
-<iframe src="figures/mutual_info_top15.png" width="100%" height="500px" frameBorder=0></iframe>
+- **Team Members:** Mert Ozer, Brandon Dioneda, Qianjin Zhou
+- **Faculty Advisor:** 
+- **Industry Partner:** PrismData
+- **Special Thanks:** We extend our gratitude to our mentors who provided guidance throughout this project, and to PrismData for providing the datasets that made this research possible.
 
-## 6. Model Evaluation
-
-## 7. Results
-
-<iframe src="figures/comparison_table.png" width="100%" height="500px" frameBorder=0></iframe>
-
-<iframe src="figures/model_confusion_matrix.png" width="100%" height="500px" frameBorder=0></iframe>
-
-## 8. Reason Codes
-
-## 9. Evaluating Our Cash Scores Against Traditional Credit Scores
-
-## 10. Future Work
-
-- Our "Cash Score" provides a more inclusive credit evaluation.
-- Real-time transaction data enhances creditworthiness assessment.
-- Future Work:
-
-## 11. Acknowledgments & References
-
-- We sincerely thank our mentors and PrismData for providing datasets.
-- Literature: AI in credit scoring, fairness in ML-based finance.
+The website design utilizes Bootstrap 5 framework and incorporates interactive visualization elements to effectively communicate our findings.
